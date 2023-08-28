@@ -192,7 +192,10 @@ class ValueSetProvider (@Qualifier("R4") private val fhirContext: FhirContext,
     @Operation(name = "\$expand", idempotent = true)
     fun expand(@ResourceParam valueSet: ValueSet?,
                @OperationParam(name = ValueSet.SP_URL) url: TokenParam?,
-                @OperationParam(name = "filter") filter: StringParam?): ValueSet? {
+                @OperationParam(name = "filter") filter: StringParam?,
+                @OperationParam(name = "includeDesignations") includeDesignations: BooleanType?,
+                @OperationParam(name = "elements") elements: StringOrListParam?,
+                @OperationParam(name = "property") property: StringOrListParam?): ValueSet? {
         if (url == null && valueSet == null) throw UnprocessableEntityException("Both resource and url can not be null")
         var valueSetR4: ValueSet? = null;
         if (url != null) {
@@ -207,6 +210,7 @@ class ValueSetProvider (@Qualifier("R4") private val fhirContext: FhirContext,
         }
         if (valueSetR4 != null) {
             var valueSetExpansionOptions = ValueSetExpansionOptions();
+
             valueSetR4.expansion = null; // remove any previous expansion
             if (filter != null) valueSetExpansionOptions.filter = filter.value
             var expansion: ValueSetExpansionOutcome? =
