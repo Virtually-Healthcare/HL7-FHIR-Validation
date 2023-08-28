@@ -10,6 +10,7 @@ import ca.uhn.fhir.context.support.ValueSetExpansionOptions
 import ca.uhn.fhir.rest.annotation.*
 import ca.uhn.fhir.rest.api.MethodOutcome
 import ca.uhn.fhir.rest.api.server.RequestDetails
+import ca.uhn.fhir.rest.client.api.IGenericClient
 import ca.uhn.fhir.rest.param.DateParam
 import ca.uhn.fhir.rest.param.StringOrListParam
 import ca.uhn.fhir.rest.param.StringParam
@@ -17,19 +18,20 @@ import ca.uhn.fhir.rest.param.TokenParam
 import ca.uhn.fhir.rest.server.IResourceProvider
 import ca.uhn.fhir.rest.server.exceptions.UnprocessableEntityException
 import mu.KLogging
-import org.apache.commons.lang3.StringUtils
 import org.hl7.fhir.common.hapi.validation.support.ValidationSupportChain
+import org.hl7.fhir.instance.model.api.IBaseBundle
 import org.hl7.fhir.r4.model.*
-import org.hl7.fhir.utilities.npm.NpmPackage
 import org.springframework.beans.factory.annotation.Qualifier
+import org.springframework.security.oauth2.client.OAuth2AuthorizedClientManager
 import org.springframework.stereotype.Component
 import uk.nhs.england.fhirvalidator.awsProvider.AWSValueSet
+import uk.nhs.england.fhirvalidator.configuration.TerminologyValidationProperties
 import uk.nhs.england.fhirvalidator.interceptor.CognitoAuthInterceptor
 import uk.nhs.england.fhirvalidator.service.CodingSupport
-import uk.nhs.england.fhirvalidator.service.ImplementationGuideParser
+import uk.nhs.england.fhirvalidator.util.AccessTokenInterceptor
 import uk.nhs.england.fhirvalidator.util.FhirSystems
 import java.nio.charset.StandardCharsets
-import java.util.UUID
+import java.util.*
 import javax.servlet.http.HttpServletRequest
 
 @Component
@@ -37,7 +39,9 @@ class ValueSetProvider (@Qualifier("R4") private val fhirContext: FhirContext,
                         private val supportChain: ValidationSupportChain,
                         private val codingSupport: CodingSupport,
                         private val awsValueSet: AWSValueSet,
-                        private val cognitoAuthInterceptor: CognitoAuthInterceptor
+                        private val cognitoAuthInterceptor: CognitoAuthInterceptor,
+                        private val optionalAuthorizedClientManager: Optional<OAuth2AuthorizedClientManager>,
+                        private val terminologyValidationProperties: TerminologyValidationProperties
 ) : IResourceProvider {
     /**
      * The getResourceType method comes from IResourceProvider, and must
@@ -49,7 +53,23 @@ class ValueSetProvider (@Qualifier("R4") private val fhirContext: FhirContext,
     }
     private val validationSupportContext = ValidationSupportContext(supportChain)
 
+    init {
+        if (optionalAuthorizedClientManager.isPresent) {
+            val authorizedClientManager = optionalAuthorizedClientManager.get()
+            val accessTokenInterceptor = AccessTokenInterceptor(authorizedClientManager)
+            provideClient(accessTokenInterceptor)
+        }
+    }
+
+    private fun provideClient(accessTokenInterceptor : AccessTokenInterceptor) {
+        val retVal: IGenericClient = fhirContext.newRestfulGenericClient(terminologyValidationProperties.url)
+        retVal.registerInterceptor(accessTokenInterceptor)
+        terminologyClient = retVal
+    }
+
     companion object : KLogging()
+
+    private var terminologyClient : IGenericClient? = null;
 
     @Update
     fun update(
@@ -117,7 +137,21 @@ class ValueSetProvider (@Qualifier("R4") private val fhirContext: FhirContext,
         if (resource != null) { list.add(resource)
         } else {
             val resources = awsValueSet.search(url)
-            if (resources.size>0) list.addAll(resources)
+            if (resources.size > 0) {
+                list.addAll(resources)
+            } else {
+                if (terminologyClient !== null) {
+                    val results = terminologyClient!!.search<Bundle>().forResource("ValueSet")
+                        .where(CodeSystem.URL.matches().value(url.value)).execute()
+                    if (results !== null && results.hasEntry()) {
+                        if (results.entry.size>0 && results.entry[0].hasResource() && results.entry[0].resource is ValueSet) {
+                            val summaryValueset = results.entry[0].resource as ValueSet
+                            val fullValueSet = terminologyClient!!.read().resource("ValueSet").withId(summaryValueset.id).execute()
+                            if (fullValueSet is ValueSet) list.add(fullValueSet)
+                        }
+                    }
+                }
+            }
         }
         return list
     }
@@ -229,4 +263,5 @@ class ValueSetProvider (@Qualifier("R4") private val fhirContext: FhirContext,
         }
 
     }
+
 }
