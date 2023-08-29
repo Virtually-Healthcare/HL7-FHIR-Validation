@@ -28,13 +28,18 @@ class QuestionnaireProvider (@Qualifier("R4") private val fhirContext: FhirConte
 
     companion object : KLogging()
 
-
+    @Read
+    fun read( httpRequest : HttpServletRequest,@IdParam internalId: IdType): Questionnaire? {
+        val resource: Resource? = basicAuthInterceptor.readFromUrl(httpRequest.pathInfo,  null, null)
+        return if (resource is Questionnaire) resource else null
+    }
 
     @Search
     fun search(
         httpRequest : HttpServletRequest,
         @OptionalParam(name = Questionnaire.SP_URL) url: TokenParam?,
         @OptionalParam(name = Questionnaire.SP_TITLE) title: StringParam?,
+        @OptionalParam(name = Questionnaire.SP_CODE) code: TokenParam?,
         @OptionalParam(name = "_content") content: StringParam?,
         @OptionalParam(name = "_count") count: StringParam?
                ): Bundle? {
