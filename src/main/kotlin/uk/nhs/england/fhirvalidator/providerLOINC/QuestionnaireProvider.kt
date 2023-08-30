@@ -47,6 +47,10 @@ class QuestionnaireProvider (@Qualifier("R4") private val fhirContext: FhirConte
            if (item.hasCode() && item.code.size > 0 && item.codeFirstRep.hasSystem() && item.codeFirstRep.system.equals("http://loinc.org")) {
                val units = codeSystemLOINCProvider.getUnits(item.codeFirstRep.code)
                if (units !== null && units.hasParameter()) {
+                   if (item.type.equals(Questionnaire.QuestionnaireItemType.DECIMAL)) {
+                       // if it has units it is not a decimal
+                       item.type = Questionnaire.QuestionnaireItemType.QUANTITY
+                   }
                    for (unit in units.parameter) {
                        if (unit.hasValue() && unit.value is StringType) {
                            item.initial.add(
