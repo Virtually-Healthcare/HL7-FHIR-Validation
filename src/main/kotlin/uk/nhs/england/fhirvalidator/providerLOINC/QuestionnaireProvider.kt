@@ -14,7 +14,8 @@ import javax.servlet.http.HttpServletRequest
 
 @Component
 class QuestionnaireProvider (@Qualifier("R4") private val fhirContext: FhirContext,
-    private val basicAuthInterceptor: BasicAuthInterceptor
+    private val basicAuthInterceptor: BasicAuthInterceptor,
+    private val codeSystemLOINCProvider: CodeSystemLOINCProvider
 ) : IResourceProvider {
     /**
      * The getResourceType method comes from IResourceProvider, and must
@@ -31,7 +32,39 @@ class QuestionnaireProvider (@Qualifier("R4") private val fhirContext: FhirConte
     @Read
     fun read( httpRequest : HttpServletRequest,@IdParam internalId: IdType): Questionnaire? {
         val resource: Resource? = basicAuthInterceptor.readFromUrl(httpRequest.pathInfo,  null, null)
-        return if (resource is Questionnaire) resource else null
+
+        if (resource is Questionnaire) {
+            var questionnaire = resource as Questionnaire
+            if (questionnaire.hasItem()) getUnits(questionnaire.item)
+            return questionnaire
+        }
+
+        return null
+    }
+
+    private fun getUnits(items: List<Questionnaire.QuestionnaireItemComponent>) {
+       for (item in items) {
+           if (item.hasCode() && item.code.size > 0 && item.codeFirstRep.hasSystem() && item.codeFirstRep.system.equals("http://loinc.org")) {
+               val units = codeSystemLOINCProvider.getUnits(item.codeFirstRep.code)
+               if (units !== null && units.hasParameter()) {
+                   for (unit in units.parameter) {
+                       if (unit.hasValue() && unit.value is StringType) {
+                           item.initial.add(
+                               Questionnaire.QuestionnaireItemInitialComponent()
+                                   .setValue(
+                                       Coding().setSystem("http://unitsofmeasure.org").setCode((unit.value as StringType).value))
+                           )
+                           item.extension.add(
+                               Extension()
+                                   .setUrl("http://hl7.org/fhir/StructureDefinition/questionnaire-unitOption")
+                                   .setValue(
+                                       Coding().setSystem("http://unitsofmeasure.org").setCode((unit.value as StringType).value))
+                           )
+                       }
+                   }
+               }
+           }
+       }
     }
 
     @Search

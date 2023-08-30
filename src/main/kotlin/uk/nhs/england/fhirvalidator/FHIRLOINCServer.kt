@@ -11,7 +11,9 @@ import uk.nhs.england.fhirvalidator.configuration.FHIRServerProperties
 import uk.nhs.england.fhirvalidator.configuration.MessageProperties
 import uk.nhs.england.fhirvalidator.interceptor.AWSAuditEventLoggingInterceptor
 import uk.nhs.england.fhirvalidator.interceptor.ValidationInterceptor
+import uk.nhs.england.fhirvalidator.providerLOINC.CodeSystemLOINCProvider
 import uk.nhs.england.fhirvalidator.providerLOINC.QuestionnaireProvider
+import uk.nhs.england.fhirvalidator.providerLOINC.ValueSetLOINCProvider
 import java.util.*
 import javax.servlet.annotation.WebServlet
 
@@ -20,6 +22,8 @@ class FHIRLOINCServer(
     @Qualifier("R4") fhirContext: FhirContext,
     @Autowired(required = false) val sqs : AmazonSQS?,
     val questionnaireProvider: QuestionnaireProvider,
+    val codeSystemLOINCProvider: CodeSystemLOINCProvider,
+    val valueSetLOINCProvider: ValueSetLOINCProvider,
     val fhirServerProperties: FHIRServerProperties,
     private val messageProperties: MessageProperties
 ) : RestfulServer(fhirContext) {
@@ -29,6 +33,8 @@ class FHIRLOINCServer(
 
         TimeZone.setDefault(TimeZone.getTimeZone("UTC"))
         registerProvider(questionnaireProvider)
+        registerProvider(codeSystemLOINCProvider)
+        registerProvider(valueSetLOINCProvider)
 
         val awsAuditEventLoggingInterceptor =
             AWSAuditEventLoggingInterceptor(
