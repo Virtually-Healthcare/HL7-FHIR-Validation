@@ -56,18 +56,18 @@ Where <Debian-version-codename> e.g. bookworm (lowercase) for Debian.
 - Within the validator folder run the following:
   - $ mvn clean install
   - $ docker build -t fhir-validator-r4 .
-  - $ docker tag fhir-validator-r4:latest 365027538941.dkr.ecr.eu-west-2.amazonaws.com/fhir-validator-r4:<hapi-fhir version-number>
-  - $ docker tag fhir-validator-r4:latest 365027538941.dkr.ecr.eu-west-2.amazonaws.com/fhir-validator-r4:latest
+  - $ docker tag fhir-validator-r4:latest <account id>.dkr.ecr.eu-west-2.amazonaws.com/fhir-validator-r4:<hapi-fhir version-number>
+  - $ docker tag fhir-validator-r4:latest <account id>.dkr.ecr.eu-west-2.amazonaws.com/fhir-validator-r4:latest
 
-- Login in to https://d-9c67018f89.awsapps.com/start/#/ (hscic acct)
+- Login in to the AWS website
 - Click ‘Command line or programmatic access’ within NHS Digital IOPS FHIR dev
 - Sign into AWS using either:
   - Copy option 1 if using bash / windows / powershell
   - Copy Option 2 into credentials.txt if you have aws toolkit installed
 
 - run
-  - $ aws get-login-password –region eu-west-2 | docker login –username AWS –password stdin 365027538941.dkr.ecr.eu-west-2.amazonaws.com
-  - $ docker push 365027538941.dkr.ecr.eu-west-2.amazonaws.com/fhir-validator-r4:[hapi-fhir version-number]
+  - $ aws get-login-password –region eu-west-2 | docker login –username AWS –password stdin <account id>.dkr.ecr.eu-west-2.amazonaws.com
+  - $ docker push <account id>.dkr.ecr.eu-west-2.amazonaws.com/fhir-validator-r4:[hapi-fhir version-number]
 
 - In AWS go to ‘Management console’
   - Search for ECR 
