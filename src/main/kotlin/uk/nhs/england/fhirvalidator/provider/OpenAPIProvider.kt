@@ -59,12 +59,11 @@ class OpenAPIProvider(@Qualifier("R4") private val fhirContext: FhirContext,
         else {
 
          */
+        val oasResult: SwaggerParseResult;
         if (input !== null && !input.isEmpty()) {
-            val result: SwaggerParseResult =
-                io.swagger.parser.OpenAPIParser().readContents(input, null, parseOptions)
-            if (result.getMessages() != null) result.getMessages().forEach(System.err::println); // validation errors and warnings
+            oasResult = io.swagger.parser.OpenAPIParser().readContents(input, null, parseOptions)
 
-            openAPI = result.openAPI
+            openAPI = oasResult.openAPI
         } else {
             servletResponse.writer.write(fhirContext.newJsonParser().setPrettyPrint(true).encodeResourceToString(
                 OperationOutcome()
@@ -79,7 +78,19 @@ class OpenAPIProvider(@Qualifier("R4") private val fhirContext: FhirContext,
 
         if (openAPI !=null) {
             val results = verifyOAS.validate(openAPI)
-            servletResponse.writer.write(fhirContext.newJsonParser().setPrettyPrint(true).encodeResourceToString(createOperationOutcome(results)))
+            var outcome = createOperationOutcome(results)
+            if (oasResult !== null && oasResult.getMessages() != null) {
+                oasResult.getMessages().forEach({
+                   var issue = outcome.addIssue()
+                    issue.setSeverity(OperationOutcome.IssueSeverity.WARNING)
+                        .setDiagnostics("OAS Issues: "+it)
+                    issue.code = OperationOutcome.IssueType.CODEINVALID
+                }
+                )
+            }; // validation errors and warnings
+
+
+            servletResponse.writer.write(fhirContext.newJsonParser().setPrettyPrint(true).encodeResourceToString(outcome))
             servletResponse.writer.flush()
             return
         }
