@@ -148,13 +148,31 @@ class VerifyOAS(@Qualifier("R4") private val ctx: FhirContext?,
 
                                             operationIssue.location.add(StringType("OAS: "+apiPaths.key + "/get/" + apiParameter.name+"/schema/type"))
                                         }
-                                        if (apiParameter.schema is ArraySchema && apiParameter.schema.format.equals("token") && apiParameter.explode) {
-                                            val operationIssue = addOperationIssue(outcomes,OperationOutcome.IssueType.CODEINVALID, OperationOutcome.IssueSeverity.ERROR,"For array of format = token, explode should be set to false")
-                                            operationIssue.location.add(StringType("OAS: "+apiPaths.key + "/get/" + apiParameter.name+"/schema/type"))
-                                        }
-                                        if (apiParameter.schema is ArraySchema && apiParameter.schema.format.equals("date") && !apiParameter.explode) {
-                                            val operationIssue = addOperationIssue(outcomes,OperationOutcome.IssueType.CODEINVALID, OperationOutcome.IssueSeverity.ERROR,"For array of format = date, explode should be set to true")
-                                            operationIssue.location.add(StringType("OAS: "+apiPaths.key + "/get/" + apiParameter.name+"/schema/type"))
+                                        if (apiParameter.schema is ArraySchema && apiParameter.schema.format !== null) {
+                                            if (apiParameter.schema.format.equals(
+                                                    "token"
+                                                ) && apiParameter.explode
+                                            ) {
+                                                val operationIssue = addOperationIssue(
+                                                    outcomes,
+                                                    OperationOutcome.IssueType.CODEINVALID,
+                                                    OperationOutcome.IssueSeverity.ERROR,
+                                                    "For array of format = token, explode should be set to false"
+                                                )
+                                                operationIssue.location.add(StringType("OAS: " + apiPaths.key + "/get/" + apiParameter.name + "/schema/type"))
+                                            }
+                                            if (apiParameter.schema.format.equals(
+                                                    "date"
+                                                ) && !apiParameter.explode
+                                            ) {
+                                                val operationIssue = addOperationIssue(
+                                                    outcomes,
+                                                    OperationOutcome.IssueType.CODEINVALID,
+                                                    OperationOutcome.IssueSeverity.ERROR,
+                                                    "For array of format = date, explode should be set to true"
+                                                )
+                                                operationIssue.location.add(StringType("OAS: " + apiPaths.key + "/get/" + apiParameter.name + "/schema/type"))
+                                            }
                                         }
                                     }
                                     Enumerations.SearchParamType.NUMBER -> {

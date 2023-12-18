@@ -633,7 +633,7 @@ open class OpenApiConfig(@Qualifier("R4") val ctx : FhirContext) {
                         .addMediaType("application/x-yaml",MediaType().schema(StringSchema()))
                         .addMediaType("application/json",MediaType().schema(StringSchema()))))
             )
-        oas.path("/\$verifyOAS",verifyOASItem)
+        oas.path("/FHIR/R4/\$verifyOAS",verifyOASItem)
 
         val convertToTextItem = PathItem()
             .post(
