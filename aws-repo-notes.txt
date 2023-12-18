@@ -23,11 +23,11 @@ mvn clean install
 docker build -t fhir-validator-r4 .
 
 docker tag fhir-validator-r4:latest 365027538941.dkr.ecr.eu-west-2.amazonaws.com/fhir-validator-r4:latest
-docker tag fhir-validator-r4:latest 365027538941.dkr.ecr.eu-west-2.amazonaws.com/fhir-validator-r4:6.8.0
+docker tag fhir-validator-r4:latest 365027538941.dkr.ecr.eu-west-2.amazonaws.com/fhir-validator-r4:6.8.5
 
 docker push 365027538941.dkr.ecr.eu-west-2.amazonaws.com/fhir-validator-r4:latest
 
-docker push 365027538941.dkr.ecr.eu-west-2.amazonaws.com/fhir-validator-r4:6.8.0
+docker push 365027538941.dkr.ecr.eu-west-2.amazonaws.com/fhir-validator-r4:6.8.5
 
 
 

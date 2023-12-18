@@ -88,7 +88,7 @@ class CodeSystemProvider (@Qualifier("R4") private val fhirContext: FhirContext,
 
 
     @Operation(name = "\$lookup", idempotent = true)
-    fun validateCode (
+    fun lookup (
 
         @OperationParam(name = "code") code: String?,
         @OperationParam(name = "system") system: String?,

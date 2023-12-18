@@ -248,4 +248,12 @@ public class RemoteTerminologyServiceValidationSupport extends BaseValidationSup
         }
         return new LookupCodeResult();
     }
+
+    @Nullable
+    @Override
+    public <T extends IBaseResource> T fetchResource(@Nullable Class<T> theClass, String theUri) {
+       System.out.println("Fetch "+theUri);
+       return null;
+    }
+
 }
