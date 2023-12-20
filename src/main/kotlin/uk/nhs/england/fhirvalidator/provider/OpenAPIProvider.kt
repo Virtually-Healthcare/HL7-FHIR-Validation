@@ -59,6 +59,8 @@ class OpenAPIProvider(@Qualifier("R4") private val fhirContext: FhirContext,
         else {
 
          */
+        servletResponse.setContentType("application/json")
+        servletResponse.setCharacterEncoding("UTF-8")
         val oasResult: SwaggerParseResult;
         if (input !== null && !input.isEmpty()) {
             oasResult = io.swagger.parser.OpenAPIParser().readContents(input, null, parseOptions)
