@@ -37,7 +37,7 @@ class VerifyOAS(@Qualifier("R4") private val ctx: FhirContext?,
         val outcomes = mutableListOf<OperationOutcome.OperationOutcomeIssueComponent>()
 
         if (openAPI.info.extensions == null || openAPI.info.extensions.get("x-HL7-FHIR-NpmPackages") == null) {
-            addOperationIssue(outcomes,OperationOutcome.IssueType.BUSINESSRULE, OperationOutcome.IssueSeverity.WARNING, "No FHIR package extension found")
+            addOperationIssue(outcomes,OperationOutcome.IssueType.BUSINESSRULE, OperationOutcome.IssueSeverity.INFORMATION, "No FHIR package extension found in the OAS specification. This a comment, not an error")
                 .location.add(StringType("OAS: info.extensions.x-HL7-FHIR-NpmPackages"))
         }
         for (apiPaths in openAPI.paths) {

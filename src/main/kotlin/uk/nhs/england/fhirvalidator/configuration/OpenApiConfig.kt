@@ -2,7 +2,6 @@ package uk.nhs.england.fhirvalidator.configuration
 
 
 import ca.uhn.fhir.context.FhirContext
-import io.swagger.v3.oas.models.ExternalDocumentation
 import io.swagger.v3.oas.models.OpenAPI
 import io.swagger.v3.oas.models.Operation
 import io.swagger.v3.oas.models.PathItem
@@ -22,7 +21,7 @@ import io.swagger.v3.oas.models.servers.Server
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
-import uk.nhs.england.fhirvalidator.util.FHIRExamples
+import uk.nhs.england.fhirvalidator.util.OASExamples
 
 
 @Configuration
@@ -83,13 +82,13 @@ open class OpenApiConfig(@Qualifier("R4") val ctx : FhirContext) {
 
         val examples = LinkedHashMap<String,Example?>()
         examples.put("Patient PDS",
-            Example().value(FHIRExamples().loadExample("Patient-PDS.json",ctx))
+            Example().value(OASExamples().loadFHIRExample("Patient-PDS.json",ctx))
         )
         examples.put("Encounter converted from HL7 v2",
-            Example().value(FHIRExamples().loadExample("Encounter-ADTA03.json",ctx))
+            Example().value(OASExamples().loadFHIRExample("Encounter-ADTA03.json",ctx))
         )
         examples.put("Bundle - FHIR Messge example",
-            Example().value(FHIRExamples().loadExample("Bundle-message.json",ctx))
+            Example().value(OASExamples().loadFHIRExample("Bundle-message.json",ctx))
         )
         val validateItem = PathItem()
             .post(
@@ -622,6 +621,13 @@ open class OpenApiConfig(@Qualifier("R4") val ctx : FhirContext) {
 
         oas.path("/FHIR/R4/StructureMap",getPathItem(CONFORMANCE, "StructureMap", "Structure Map", "url" , "http://fhir.nhs.uk/StructureMap/MedicationRepeatInformation-Extension-3to4", ""))
 
+        val examplesOAS = LinkedHashMap<String,Example?>()
+        examplesOAS.put("Imaging API",
+            Example().value(OASExamples().loadOASExample("Imaging.json",ctx))
+        )
+        examplesOAS.put("PDS API",
+            Example().value(OASExamples().loadOASExample("PDS.json",ctx))
+        )
         val verifyOASItem = PathItem()
             .post(
                 Operation()
@@ -630,8 +636,10 @@ open class OpenApiConfig(@Qualifier("R4") val ctx : FhirContext) {
                     .description("This is a proof of concept.")
                     .responses(getApiResponsesRAWJSON())
                     .requestBody(RequestBody().content(Content()
-                        .addMediaType("application/x-yaml",MediaType().schema(StringSchema()))
-                        .addMediaType("application/json",MediaType().schema(StringSchema()))))
+                        .addMediaType("application/json",MediaType().examples(examplesOAS)
+                            .schema(StringSchema()))
+                        .addMediaType("application/x-yaml",MediaType().schema(StringSchema())))
+                    )
             )
         oas.path("/FHIR/R4/\$verifyOAS",verifyOASItem)
 
