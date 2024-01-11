@@ -334,8 +334,13 @@ open class ValidationConfiguration(
     }
 
     private fun getBase(profile : String,supportChain: IValidationSupport): String? {
-        val structureDefinition : StructureDefinition=
-            supportChain.fetchStructureDefinition(profile) as StructureDefinition;
+        val structureDefinitionResource = supportChain.fetchStructureDefinition(profile)
+        if (structureDefinitionResource === null) {
+            logger.error("Issue retrieving " + profile)
+            return null;
+        }
+        val structureDefinition = structureDefinitionResource as StructureDefinition;
+
         if (structureDefinition.hasBaseDefinition()) {
             var baseProfile = structureDefinition.baseDefinition
             if (baseProfile.contains(".uk")) baseProfile = getBase(baseProfile, supportChain)
