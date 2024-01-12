@@ -5,11 +5,13 @@ import ca.uhn.fhir.context.support.IValidationSupport
 import ca.uhn.fhir.rest.api.EncodingEnum
 import ca.uhn.fhir.rest.server.RestfulServer
 import org.springframework.beans.factory.annotation.Qualifier
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import uk.nhs.england.fhirvalidator.providerSTU3.ConversionProviderSTU3
 import uk.nhs.england.fhirvalidator.providerSTU3.ValidateProviderSTU3
 import java.util.*
 import javax.servlet.annotation.WebServlet
 
+@ConditionalOnProperty(prefix = "services", name = ["STU3"])
 @WebServlet("/FHIR/STU3/*", loadOnStartup = 1)
 class FHIRSTU3RestfulServer(
     @Qualifier("STU3") fhirContext: FhirContext,

@@ -53,7 +53,7 @@ class CapabilityStatementInterceptor(
         val packageExtension = Extension();
         packageExtension.url="openApi"
         packageExtension.extension.add(Extension().setUrl("documentation").setValue(UriType("https://simplifier.net/guide/NHSDigital/Home")))
-        packageExtension.extension.add(Extension().setUrl("description").setValue(StringType("NHS Digital FHIR Implementation Guide")))
+        packageExtension.extension.add(Extension().setUrl("description").setValue(StringType("NHS England FHIR Implementation Guide")))
         apiextension.extension.add(packageExtension)
         cs.extension.add(apiextension)
 

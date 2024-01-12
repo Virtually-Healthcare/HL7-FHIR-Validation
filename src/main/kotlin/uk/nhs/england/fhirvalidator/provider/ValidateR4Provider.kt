@@ -13,6 +13,7 @@ import mu.KLogging
 import org.hl7.fhir.instance.model.api.IBaseResource
 import org.hl7.fhir.r4.hapi.ctx.HapiWorkerContext
 import org.hl7.fhir.r4.model.*
+import org.hl7.fhir.r4.model.OperationOutcome.OperationOutcomeIssueComponent
 import org.hl7.fhir.r4.utils.FHIRPathEngine
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.stereotype.Component
@@ -157,14 +158,36 @@ class ValidateR4Provider (
     }
 
     fun validateResource(resource: IBaseResource, profile: String?): OperationOutcome? {
-        if (profile != null) return validator.validateWithResult(resource, ValidationOptions().addProfile(profile))
-            .toOperationOutcome() as? OperationOutcome
-        capabilityStatementApplier.applyCapabilityStatementProfiles(resource)
-        val messageDefinitionErrors = messageDefinitionApplier.applyMessageDefinition(resource)
-        if (messageDefinitionErrors != null) {
-            return messageDefinitionErrors
+        var additionalIssues = ArrayList<OperationOutcomeIssueComponent>()
+        if (resource is Resource) {
+            if (resource.hasMeta() && resource.meta.hasProfile()) {
+                additionalIssues.add(OperationOutcome.OperationOutcomeIssueComponent()
+                    .setSeverity(OperationOutcome.IssueSeverity.INFORMATION)
+                    .setCode(OperationOutcome.IssueType.INFORMATIONAL)
+                    .setDiagnostics("UK Core advice - population of meta.profile claims is not required for resource instances.")
+                )
+            }
         }
-        return validator.validateWithResult(resource).toOperationOutcome() as? OperationOutcome
+        var result : OperationOutcome? = null
+        if (profile != null) {
+            result = validator.validateWithResult(resource, ValidationOptions().addProfile(profile))
+                .toOperationOutcome() as? OperationOutcome
+        } else {
+            capabilityStatementApplier.applyCapabilityStatementProfiles(resource)
+            val messageDefinitionErrors = messageDefinitionApplier.applyMessageDefinition(resource)
+            if (messageDefinitionErrors != null) {
+                messageDefinitionErrors.issue.forEach{
+                    additionalIssues.add(it)
+                }
+            }
+            result = validator.validateWithResult(resource).toOperationOutcome() as? OperationOutcome
+        }
+        if (result !== null) {
+            additionalIssues.forEach{
+                result.issue.add(it)
+            }
+        }
+        return result
     }
 
     fun getResourcesToValidate(inputResource: IBaseResource?): List<IBaseResource> {

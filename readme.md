@@ -12,7 +12,7 @@ It has several configuration options:
 
 a. To validate against a supplied set of FHIR Implementation Guides (NPM packages are supplied).
 b. To validate against a configured FHIR Implementation Guide (NPM package are retrieved by the service and configured via environment variables)
-c. Optionally validate using the NHS Digital Ontology Service (configured via environment variables).
+c. Optionally validate using the NHS England Ontology Service (configured via environment variables).
 
 The configuration is aimed at supporting different use cases. For example the lambda version with no ontology support is aimed at performing basic FHIR validation checks. This may just be FHIR core and schema validation but can also test against UKCore profiles.
 

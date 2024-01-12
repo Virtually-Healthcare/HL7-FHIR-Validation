@@ -2,6 +2,7 @@ package uk.nhs.england.fhirvalidator.configuration
 
 
 import ca.uhn.fhir.context.FhirContext
+import com.fasterxml.jackson.databind.ObjectMapper
 import io.swagger.v3.oas.models.OpenAPI
 import io.swagger.v3.oas.models.Operation
 import io.swagger.v3.oas.models.PathItem
@@ -21,11 +22,15 @@ import io.swagger.v3.oas.models.servers.Server
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
+import org.springframework.core.io.ClassPathResource
+import uk.nhs.england.fhirvalidator.model.SimplifierPackage
 import uk.nhs.england.fhirvalidator.util.OASExamples
 
 
 @Configuration
-open class OpenApiConfig(@Qualifier("R4") val ctx : FhirContext) {
+open class OpenApiConfig(@Qualifier("R4") val ctx : FhirContext,
+                         val objectMapper: ObjectMapper,
+                         val servicesProperties: ServicesProperties) {
    var VALIDATION = "Validation"
     var UTILITY = "Utility"
     var EXPANSION = "ValueSet Expansion (inc. Filtering)"
@@ -45,13 +50,26 @@ open class OpenApiConfig(@Qualifier("R4") val ctx : FhirContext) {
         val oas = OpenAPI()
             .info(
                 Info()
-                    .title("Conformance Support (R4)")
+                    .title(fhirServerProperties.server.name)
                     .version(fhirServerProperties.server.version)
-                    .description(fhirServerProperties.server.name
-                            + "\n "
-                            + "\n [UK Core Implementation Guide (fhir.r4.ukcore.stu3.currentbuild)](https://simplifier.net/guide/ukcoreversionhistory?version=current)"
-                            + "\n\n [NHS Digital Implementation Guide](https://simplifier.net/guide/nhsdigital)"
-                        )
+                    .description(
+                            "This server is a **proof of concept**, it contains experimental features and so not is recommended for live use. \n It is used internally by NHS England Interoperability Standards to support delivery of HL7 FHIR. \n"
+                            + "\n For official HL7 FHIR Validators, see:"
+                            + "\n - [HL7 FHIR Validator](https://confluence.hl7.org/display/FHIR/Using+the+FHIR+Validator) A command line utilty"
+                                    + "\n - [Validator GUI](https://validator.fhir.org/) A web based application "
+                            + "\n\n This server is preconfigured with the following FHIR Implementation Packages: \n\n"
+                            + " | Package | Version | Implementation Guide | \n"
+                            + " |---|---|---| \n"
+                                    + getPackages()
+                            + "\n\n This is an implementation of FHIR Validation [Asking a FHIR Server](https://hl7.org/fhir/R4/validation.html#op) and is built using [HAPI FHIR Validation](https://hapifhir.io/hapi-fhir/docs/validation/introduction.html). This is the same code base as the [official HL7 Validator](https://github.com/hapifhir/org.hl7.fhir.validator-wrapper), the main differences are: \n"
+                                    + "\n - Configuration and code to support code validation using NHS England Terminology Server."
+                                    + "\n - Support for validating **FHIR Messages** against definitions held in **FHIR MessageDefinition**"
+                                    + "\n - Default profile support configured via **FHIR CapabilityStatement**"
+                            + "\n\n ### Terminology Testing (Coding)\n"
+                            + "\n\n This server uses services from [NHS England Termonology Server](https://digital.nhs.uk/services/terminology-server) to perform terminology verification. The UK SNOMED CT version used for FHIR Validation is set by this ontology service. \n"
+                            + "\n\n ### Open Source"
+                            + "\n\n Source code [GitHub](https://github.com/NHSDigital/IOPS-FHIR-Validation-Service)"
+                    )
                     .termsOfService("http://swagger.io/terms/")
                     .license(License().name("Apache 2.0").url("http://springdoc.org"))
             )
@@ -84,11 +102,17 @@ open class OpenApiConfig(@Qualifier("R4") val ctx : FhirContext) {
         examples.put("Patient PDS",
             Example().value(OASExamples().loadFHIRExample("Patient-PDS.json",ctx))
         )
-        examples.put("Encounter converted from HL7 v2",
+        examples.put("Encounter converted from HL7 v2 ADT",
             Example().value(OASExamples().loadFHIRExample("Encounter-ADTA03.json",ctx))
         )
-        examples.put("Bundle - FHIR Messge example",
-            Example().value(OASExamples().loadFHIRExample("Bundle-message.json",ctx))
+        examples.put("Referrals - FHIR Message example",
+            Example().value(OASExamples().loadFHIRExample("Bundle-message-Referrals.json",ctx))
+        )
+        examples.put("Diagnostics - FHIR Message example",
+            Example().value(OASExamples().loadFHIRExample("Bundle-message-Diagnostics.json",ctx))
+        )
+        examples.put("Diagnostics - FHIR Message transformed from HL7 v2 ORU_R01 (DHCW)",
+            Example().value(OASExamples().loadFHIRExample("Bundle-message-ORU-R01.json",ctx))
         )
         val validateItem = PathItem()
             .post(
@@ -96,29 +120,15 @@ open class OpenApiConfig(@Qualifier("R4") val ctx : FhirContext) {
                     .addTagsItem(VALIDATION)
                     .summary(
                         "The validate operation checks whether the attached content would be acceptable either generally, as a create, an update or as a delete to an existing resource.")
-                    .description("Validating a resource means, checking that the following aspects of the resource are valid: \n"
-                            + " - **Structure:** Check that all the content in the resource is described by the specification, and nothing extra is present \n"
-                            + " - **Cardinality:** Check that the cardinality of all properties is correct (min & max) \n"
-                            + " - **Value Domains:** Check that the values of all properties conform to the rules for the specified types (including checking that enumerated codes are valid) \n"
-                            + " - **Coding/CodeableConcept bindings:** Check that codes/displays provided in the Coding/CodeableConcept types are valid \n"
-                            + " - **Invariants:** Check that the invariants (co-occurrence rules, etc.) have been followed correctly \n"
-                            + " - **Profiles:** Check that any rules in profiles have been followed (including those listed in the Resource.meta.profile, or in CapabilityStatement, or in an ImplementationGuide, or otherwise required by context) \n"
-                            + " - **Questionnaires:** Check that a QuestionnaireResponse is valid against its matching Questionnaire \n"
-                            + " \n \n"
-                            + "The validate operation checks whether the attached content would be acceptable either generally, as a create, an update or as a delete to an existing resource. \n"
-                            + "Note that this operation is not the only way to validate resources - see [Validating Resources](https://www.hl7.org/fhir/R4/validation.html) for further information. \n"
-                            + "\n"
-                            + "The official URL for this operation definition is \n"
-                            + " **http://hl7.org/fhir/OperationDefinition/Resource-validate** ")
                     .responses(getApiResponsesXMLJSON_JSONDefault())
                     .addParametersItem(Parameter()
                         .name("profile")
                         .`in`("query")
                         .required(false)
                         .style(Parameter.StyleEnum.SIMPLE)
-                        .description("The uri that identifies the profile. If no profile uri is supplied, NHS Digital defaults will be used.")
-                        .schema(StringSchema().format("token"))
-                        .example("https://fhir.hl7.org.uk/StructureDefinition/UKCore-Patient"))
+                        .description("The uri that identifies the profile (e.g. https://fhir.hl7.org.uk/StructureDefinition/UKCore-Patient). If no profile uri is supplied, NHS England defaults will be used.")
+                       // Removed example profile
+                        .schema(StringSchema().format("token")))
                     .requestBody(RequestBody().content(Content()
                         .addMediaType("application/fhir+json", MediaType()
                             .examples(examples)
@@ -510,82 +520,90 @@ open class OpenApiConfig(@Qualifier("R4") val ctx : FhirContext) {
 
         oas.path("/FHIR/R4/CodeSystem/\$subsumes",subsumesItem)
 
+        if (servicesProperties.R4B) {
 
+            // MEDICATION DEFINITION
 
-        // MEDICATION DEFINITION
+            val medicineItem = PathItem()
+                .get(
+                    Operation()
+                        .addTagsItem(MEDICATION_DEFINITION)
+                        .summary("EXPERIMENTAL A medicinal product, being a substance or combination of substances that is intended to treat, prevent or diagnose a disease, or to restore, correct or modify physiological functions by exerting a pharmacological, immunological or metabolic action.")
+                        .description("[Medication Definition Module](https://www.hl7.org/fhir/medication-definition-module.html)")
+                        .responses(getApiResponses())
+                        .addParametersItem(
+                            Parameter()
+                                .name("name")
+                                .`in`("query")
+                                .required(false)
+                                .style(Parameter.StyleEnum.SIMPLE)
+                                .description("The full product name")
+                                .schema(StringSchema())
+                                .example("Methotrexate 5mg")
+                        )
+                )
+            oas.path("/FHIR/R4B/MedicinalProductDefinition", medicineItem)
 
-        val medicineItem = PathItem()
-            .get(
-                Operation()
-                    .addTagsItem(MEDICATION_DEFINITION)
-                    .summary("EXPERIMENTAL A medicinal product, being a substance or combination of substances that is intended to treat, prevent or diagnose a disease, or to restore, correct or modify physiological functions by exerting a pharmacological, immunological or metabolic action.")
-                    .description("[Medication Definition Module](https://www.hl7.org/fhir/medication-definition-module.html)")
-                    .responses(getApiResponses())
-                    .addParametersItem(Parameter()
-                        .name("name")
-                        .`in`("query")
-                        .required(false)
-                        .style(Parameter.StyleEnum.SIMPLE)
-                        .description("The full product name")
-                        .schema(StringSchema())
-                        .example("Methotrexate 5mg"))
-            )
-        oas.path("/FHIR/R4B/MedicinalProductDefinition",medicineItem)
+            val medicineReadItem = PathItem()
+                .get(
+                    Operation()
+                        .addTagsItem(MEDICATION_DEFINITION)
+                        .summary("EXPERIMENTAL A medicinal product, being a substance or combination of substances that is intended to treat, prevent or diagnose a disease, or to restore, correct or modify physiological functions by exerting a pharmacological, immunological or metabolic action.")
+                        .description("[Medication Definition Module](https://www.hl7.org/fhir/medication-definition-module.html)")
+                        .responses(getApiResponses())
+                        .addParametersItem(
+                            Parameter()
+                                .name("id")
+                                .`in`("path")
+                                .required(false)
+                                .style(Parameter.StyleEnum.SIMPLE)
+                                .description("The product dm+d/SNOMED CT code")
+                                .schema(StringSchema())
+                                .example("39720311000001101")
+                        )
+                )
+            oas.path("/FHIR/R4B/MedicinalProductDefinition/{id}", medicineReadItem)
 
-        val medicineReadItem = PathItem()
-            .get(
-                Operation()
-                    .addTagsItem(MEDICATION_DEFINITION)
-                    .summary("EXPERIMENTAL A medicinal product, being a substance or combination of substances that is intended to treat, prevent or diagnose a disease, or to restore, correct or modify physiological functions by exerting a pharmacological, immunological or metabolic action.")
-                    .description("[Medication Definition Module](https://www.hl7.org/fhir/medication-definition-module.html)")
-                    .responses(getApiResponses())
-                    .addParametersItem(Parameter()
-                        .name("id")
-                        .`in`("path")
-                        .required(false)
-                        .style(Parameter.StyleEnum.SIMPLE)
-                        .description("The product dm+d/SNOMED CT code")
-                        .schema(StringSchema())
-                        .example("39720311000001101"))
-            )
-        oas.path("/FHIR/R4B/MedicinalProductDefinition/{id}",medicineReadItem)
+            val medicinePackItem = PathItem()
+                .get(
+                    Operation()
+                        .addTagsItem(MEDICATION_DEFINITION)
+                        .summary("A medically related item or items, in a container or package..")
+                        .description("[Medication Definition Module](https://www.hl7.org/fhir/medication-definition-module.html)")
+                        .responses(getApiResponses())
+                        .addParametersItem(
+                            Parameter()
+                                .name("name")
+                                .`in`("query")
+                                .required(false)
+                                .style(Parameter.StyleEnum.SIMPLE)
+                                .description("A name for this package.")
+                                .schema(StringSchema())
+                                .example("Methotrexate 5mg")
+                        )
+                )
+            oas.path("/FHIR/R4B/PackagedProductDefinition", medicinePackItem)
 
-        val medicinePackItem = PathItem()
-            .get(
-                Operation()
-                    .addTagsItem(MEDICATION_DEFINITION)
-                    .summary("A medically related item or items, in a container or package..")
-                    .description("[Medication Definition Module](https://www.hl7.org/fhir/medication-definition-module.html)")
-                    .responses(getApiResponses())
-                    .addParametersItem(Parameter()
-                        .name("name")
-                        .`in`("query")
-                        .required(false)
-                        .style(Parameter.StyleEnum.SIMPLE)
-                        .description("A name for this package.")
-                        .schema(StringSchema())
-                        .example("Methotrexate 5mg"))
-            )
-        oas.path("/FHIR/R4B/PackagedProductDefinition",medicinePackItem)
-
-        val medicinePackReadItem = PathItem()
-            .get(
-                Operation()
-                    .addTagsItem(MEDICATION_DEFINITION)
-                    .summary("EXPERIMENTAL A medically related item or items, in a container or package..")
-                    .description("[Medication Definition Module](https://www.hl7.org/fhir/medication-definition-module.html)")
-                    .responses(getApiResponses())
-                    .addParametersItem(Parameter()
-                        .name("id")
-                        .`in`("path")
-                        .required(false)
-                        .style(Parameter.StyleEnum.SIMPLE)
-                        .description("The product pack dm+d/SNOMED CT code")
-                        .schema(StringSchema())
-                        .example("1029811000001106"))
-            )
-        oas.path("/FHIR/R4B/PackagedProductDefinition/{id}",medicinePackReadItem)
-
+            val medicinePackReadItem = PathItem()
+                .get(
+                    Operation()
+                        .addTagsItem(MEDICATION_DEFINITION)
+                        .summary("EXPERIMENTAL A medically related item or items, in a container or package..")
+                        .description("[Medication Definition Module](https://www.hl7.org/fhir/medication-definition-module.html)")
+                        .responses(getApiResponses())
+                        .addParametersItem(
+                            Parameter()
+                                .name("id")
+                                .`in`("path")
+                                .required(false)
+                                .style(Parameter.StyleEnum.SIMPLE)
+                                .description("The product pack dm+d/SNOMED CT code")
+                                .schema(StringSchema())
+                                .example("1029811000001106")
+                        )
+                )
+            oas.path("/FHIR/R4B/PackagedProductDefinition/{id}", medicinePackReadItem)
+        }
         // Hidden
 
         oas.path("/FHIR/R4/metadata",PathItem()
@@ -798,5 +816,25 @@ open class OpenApiConfig(@Qualifier("R4") val ctx : FhirContext) {
                         .schema(StringSchema().format("token"))
                         .example(example)))
         return pathItem
+    }
+
+    fun getPackages() : String {
+        var packages = ""
+        val configurationInputStream = ClassPathResource("manifest.json").inputStream
+        val manifest = objectMapper.readValue(configurationInputStream, Array<SimplifierPackage>::class.java)
+        manifest.forEach {
+            packages += " | "+ it.packageName + " | " + it.version + " | "
+            if (it.packageName.contains("ukcore")) {
+                packages +=  "[UK Core Implementation Guide](https://simplifier.net/guide/ukcoreversionhistory?version=current)"
+            } else if (it.packageName.contains("diagnostics")) {
+                packages +=  "[NHS England Pathology Implementation Guide](https://simplifier.net/guide/pathology-fhir-implementation-guide)"
+            } else if (it.packageName.contains("eu.laboratory")) {
+                packages +=  "[https://build.fhir.org/ig/hl7-eu/laboratory/](https://build.fhir.org/ig/hl7-eu/laboratory/)"
+            } else if (it.packageName.contains("hl7.fhir.uv.ips")) {
+                packages +=  "[International Patient Summary Implementation Guide](https://build.fhir.org/ig/HL7/fhir-ips/)"
+            }
+            packages +=  " | \n"
+        }
+        return packages
     }
 }

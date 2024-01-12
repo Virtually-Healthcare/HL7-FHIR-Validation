@@ -1,0 +1,800 @@
+{
+  "resourceType": "Bundle",
+  "identifier": {
+    "system": "https://tools.ietf.org/html/rfc4122",
+    "value": "889fb12f-1318-4816-bf42-2a80e706743c"
+  },
+  "type": "message",
+  "entry": [
+    {
+      "fullUrl": "urn:uuid:f18a2226-c0ab-480d-b80a-b6561fe8f9c4",
+      "resource": {
+        "resourceType": "MessageHeader",
+        "id": "f18a2226-c0ab-480d-b80a-b6561fe8f9c4",
+        "eventCoding": {
+          "system": "https://fhir.nhs.uk/CodeSystem/message-event",
+          "code": "unsolicited-observations"
+        },
+        "destination":  [
+          {
+            "name": "PICKERING MEDICAL PRACTICE",
+            "endpoint": "TBC"
+          }
+        ],
+        "source": {
+          "endpoint": "TBC"
+        },
+        "focus":  [
+          {
+            "reference": "urn:uuid:f8684a34-e056-4576-8f23-cd8e433c7183"
+          },
+          {
+            "reference": "urn:uuid:a82cf83a-8c6a-4cd9-933e-9434b3a296a2"
+          }
+        ]
+      }
+    },
+    {
+      "fullUrl": "urn:uuid:a26cc7ff-c97b-4c7e-a2d1-b906fa704588",
+      "resource": {
+        "resourceType": "Patient",
+        "identifier": [
+          {
+            "system": "https://cardiff.nhs.uk/Id/mrn",
+            "value": "403281375"
+          },
+          {
+            "system": "https://fhir.nhs.uk/Id/nhs-number",
+            "value": "5189214567"
+          }
+        ],
+        "name": [
+          {
+            "family": "Bloggs",
+            "given": [
+              "Joe"
+            ],
+            "prefix": [
+              "Mr"
+            ]
+          }
+        ],
+        "birthDate": "2001-03-28",
+        "address": [
+          {
+            "city": "Baglan",
+            "district": "Neath port talbot",
+            "postalCode": "SA12 7BR"
+          }
+        ]
+      }
+    },
+    {
+      "fullUrl": "urn:uuid:5e66d610-f72a-472c-b459-e04eb3e043a4",
+      "resource": {
+        "resourceType": "Encounter",
+        "identifier": [
+          {
+            "value": "914694928301"
+          }
+        ],
+        "status": "in-progress",
+        "class": {
+          "system": "http://terminology.hl7.org/CodeSystem/v3-ActCode",
+          "code": "AMB",
+          "display": "ambulatory"
+        },
+        "subject": {
+          "identifier": {
+            "system": "https://fhir.nhs.uk/Id/nhs-number",
+            "value": "5189214567"
+          }
+        }
+      }
+    },
+    {
+      "fullUrl": "urn:uuid:46422a30-7431-43e8-8d87-21cd8606d478",
+      "resource": {
+        "resourceType": "ServiceRequest",
+        "identifier": [
+          {
+            "type": {
+              "coding": [
+                {
+                  "system": "http://terminology.hl7.org/CodeSystem/v2-0203",
+                  "code": "FILL"
+                }
+              ]
+            },
+            "value": "914694928301"
+          }
+        ],
+        "status": "active",
+        "intent": "order",
+        "priority": "stat",
+        "code": {
+          "coding": [
+            {
+              "code": "B3051",
+              "display": "HbA1c (IFCC traceable)"
+            }
+          ]
+        },
+        "orderDetail": [
+          {
+            "coding": [
+              {
+                "code": "B3051",
+                "display": "HbA1c (IFCC traceable)"
+              }
+            ]
+          },
+          {
+            "coding": [
+              {
+                "code": "B0001",
+                "display": "Full blood count"
+              }
+            ]
+          }
+        ],
+        "subject": {
+          "reference": "urn:uuid:a26cc7ff-c97b-4c7e-a2d1-b906fa704588"
+        },
+        "occurrencePeriod": {
+          "start": "2018-03-09T14:00:00+00:00",
+          "end": "2018-03-09T15:00:00+00:00"
+        },
+        "requester": {
+          "display": "Dr Andar Gunneberg"
+        }
+      }
+    },
+    {
+      "fullUrl": "urn:uuid:f8684a34-e056-4576-8f23-cd8e433c7183",
+      "resource": {
+        "resourceType": "DiagnosticReport",
+        "extension": [
+          {
+            "url": "http://hl7.org/fhir/5.0/StructureDefinition/extension-DiagnosticReport.note",
+            "valueAnnotation": {
+              "text": "For monitoring known diabetic patients, please follow NICE guidelines. If not a known diabetic and the patient is asymptomatic, a second confirmatory sample is required within 2 weeks (WEDS Guidance). HbA1c is unreliable for diagnostic and monitoring purposes in the context of several conditions, including some haemoglobinopathies, abnormal haemoglobin levels, chronic renal failure, recent transfusion, pregnancy, or alcoholism./r"
+            }
+          }
+        ],
+        "identifier": [
+          {
+            "value": "914694928301-1"
+          }
+        ],
+        "basedOn": [
+          {
+            "reference": "urn:uuid:46422a30-7431-43e8-8d87-21cd8606d478",
+            "type": "ServiceRequest",
+            "identifier": {
+              "type": {
+                "coding": [
+                  {
+                    "system": "http://terminology.hl7.org/CodeSystem/v2-0203",
+                    "code": "FILL"
+                  }
+                ]
+              },
+              "value": "914694928301"
+            }
+          }
+        ],
+        "status": "final",
+        "category": [
+          {
+            "coding": [
+              {
+                "system": "http://terminology.hl7.org/CodeSystem/v2-0074",
+                "code": "LAB"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "coding": [
+            {
+              "code": "B3051",
+              "display": "HbA1c (IFCC traceable)"
+            }
+          ]
+        },
+        "subject": {
+          "reference": "urn:uuid:a26cc7ff-c97b-4c7e-a2d1-b906fa704588"
+        },
+        "encounter": {
+          "reference": "urn:uuid:5e66d610-f72a-472c-b459-e04eb3e043a4"
+        },
+        "effectiveDateTime": "2018-03-09T15:00:00+00:00",
+        "performer": [
+          {
+            "display": "ABM: Angharad Shore"
+          }
+        ],
+        "result": [
+          {
+            "reference": "urn:uuid:9bf0cef4-90f9-474d-8d9a-1b24021ff58c"
+          }
+        ]
+      }
+    },
+    {
+      "fullUrl": "urn:uuid:9bf0cef4-90f9-474d-8d9a-1b24021ff58c",
+      "resource": {
+        "resourceType": "Observation",
+        "identifier": [
+          {
+            "value": "914694928301-1-1"
+          }
+        ],
+        "status": "final",
+        "category": [
+          {
+            "coding": [
+              {
+                "system": "http://terminology.hl7.org/CodeSystem/observation-category",
+                "code": "laboratory",
+                "display": "Laboratory"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "coding": [
+            {
+              "code": "B3553",
+              "display": "HbA1c (IFCC traceable)"
+            }
+          ]
+        },
+        "subject": {
+          "reference": "urn:uuid:a26cc7ff-c97b-4c7e-a2d1-b906fa704588"
+        },
+        "encounter": {
+          "reference": "urn:uuid:5e66d610-f72a-472c-b459-e04eb3e043a4"
+        },
+        "effectiveDateTime": "2018-03-09T15:00:00+00:00",
+        "valueQuantity": {
+          "value": 49,
+          "unit": "mmol/mol"
+        },
+        "interpretation": [
+          {
+            "coding": [
+              {
+                "system": "http://terminology.hl7.org/CodeSystem/v3-ObservationInterpretation",
+                "code": "H",
+                "display": "High"
+              }
+            ]
+          }
+        ],
+        "referenceRange": [
+          {
+            "text": "<48"
+          }
+        ]
+      }
+    },
+    {
+      "fullUrl": "urn:uuid:ea538cd0-3dc9-4979-927f-d92e6c758492",
+      "resource": {
+        "resourceType": "Specimen",
+        "accessionIdentifier": {
+          "value": "9146949283"
+        },
+        "type": {
+          "coding": [
+            {
+              "code": "BLOO",
+              "display": "Blood"
+            }
+          ]
+        },
+        "subject": {
+          "reference": "urn:uuid:a26cc7ff-c97b-4c7e-a2d1-b906fa704588"
+        },
+        "collection": {
+          "collectedDateTime": "2018-03-09T14:00:00+00:00"
+        }
+      }
+    },
+    {
+      "fullUrl": "urn:uuid:a82cf83a-8c6a-4cd9-933e-9434b3a296a2",
+      "resource": {
+        "resourceType": "DiagnosticReport",
+        "identifier": [
+          {
+            "value": "914694928301-2"
+          }
+        ],
+        "basedOn": [
+          {
+            "reference": "urn:uuid:46422a30-7431-43e8-8d87-21cd8606d478",
+            "type": "ServiceRequest",
+            "identifier": {
+              "type": {
+                "coding": [
+                  {
+                    "system": "http://terminology.hl7.org/CodeSystem/v2-0203",
+                    "code": "FILL"
+                  }
+                ]
+              },
+              "value": "914694928301"
+            }
+          }
+        ],
+        "status": "final",
+        "category": [
+          {
+            "coding": [
+              {
+                "system": "http://terminology.hl7.org/CodeSystem/v2-0074",
+                "code": "LAB"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "coding": [
+            {
+              "code": "B0001",
+              "display": "Full blood count"
+            }
+          ]
+        },
+        "subject": {
+          "reference": "urn:uuid:a26cc7ff-c97b-4c7e-a2d1-b906fa704588"
+        },
+        "encounter": {
+          "reference": "urn:uuid:5e66d610-f72a-472c-b459-e04eb3e043a4"
+        },
+        "effectiveDateTime": "2018-03-09T15:00:00+00:00",
+        "performer": [
+          {
+            "display": "ABM: Carl Owen"
+          }
+        ],
+        "specimen": [
+          {
+            "reference": "urn:uuid:ea538cd0-3dc9-4979-927f-d92e6c758492"
+          }
+        ],
+        "result": [
+          {
+            "reference": "urn:uuid:acd3687b-3419-488d-af10-acd4a65adee1"
+          },
+          {
+            "reference": "urn:uuid:199eb5d1-0ef1-45d3-8603-e386e0eadf1f"
+          },
+          {
+            "reference": "urn:uuid:142454e9-d444-4610-9588-10f1c0ac0181"
+          },
+          {
+            "reference": "urn:uuid:013ededa-e403-4799-b944-be0131d30a7d"
+          },
+          {
+            "reference": "urn:uuid:9f095865-a743-4a64-b9c8-84f335a2912f"
+          },
+          {
+            "reference": "urn:uuid:f16ba7d2-93ec-4c2f-abca-75ed4ca59df5"
+          },
+          {
+            "reference": "urn:uuid:609fe923-e837-4799-8d44-1371ed2de9cc"
+          }
+        ]
+      }
+    },
+    {
+      "fullUrl": "urn:uuid:acd3687b-3419-488d-af10-acd4a65adee1",
+      "resource": {
+        "resourceType": "Observation",
+        "identifier": [
+          {
+            "value": "914694928301-2-1"
+          }
+        ],
+        "status": "final",
+        "category": [
+          {
+            "coding": [
+              {
+                "system": "http://terminology.hl7.org/CodeSystem/observation-category",
+                "code": "laboratory",
+                "display": "Laboratory"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "coding": [
+            {
+              "code": "B0300",
+              "display": "White blood cell (WBC) count"
+            }
+          ]
+        },
+        "subject": {
+          "reference": "urn:uuid:a26cc7ff-c97b-4c7e-a2d1-b906fa704588"
+        },
+        "encounter": {
+          "reference": "urn:uuid:5e66d610-f72a-472c-b459-e04eb3e043a4"
+        },
+        "effectiveDateTime": "2018-03-09T15:00:00+00:00",
+        "valueQuantity": {
+          "value": 3.5,
+          "unit": "x10^9/L"
+        },
+        "interpretation": [
+          {
+            "coding": [
+              {
+                "system": "http://terminology.hl7.org/CodeSystem/v3-ObservationInterpretation",
+                "code": "L",
+                "display": "Low"
+              }
+            ]
+          }
+        ],
+        "referenceRange": [
+          {
+            "text": "4.0-11.0"
+          }
+        ]
+      }
+    },
+    {
+      "fullUrl": "urn:uuid:199eb5d1-0ef1-45d3-8603-e386e0eadf1f",
+      "resource": {
+        "resourceType": "Observation",
+        "identifier": [
+          {
+            "value": "914694928301-2-2"
+          }
+        ],
+        "status": "final",
+        "category": [
+          {
+            "coding": [
+              {
+                "system": "http://terminology.hl7.org/CodeSystem/observation-category",
+                "code": "laboratory",
+                "display": "Laboratory"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "coding": [
+            {
+              "code": "B0307",
+              "display": "Haemoglobin (Hb)"
+            }
+          ]
+        },
+        "subject": {
+          "reference": "urn:uuid:a26cc7ff-c97b-4c7e-a2d1-b906fa704588"
+        },
+        "encounter": {
+          "reference": "urn:uuid:5e66d610-f72a-472c-b459-e04eb3e043a4"
+        },
+        "effectiveDateTime": "2018-03-09T15:00:00+00:00",
+        "valueQuantity": {
+          "value": 200,
+          "unit": "g/L"
+        },
+        "interpretation": [
+          {
+            "coding": [
+              {
+                "system": "http://terminology.hl7.org/CodeSystem/v3-ObservationInterpretation",
+                "code": "H",
+                "display": "High"
+              }
+            ]
+          }
+        ],
+        "referenceRange": [
+          {
+            "text": "130-180"
+          }
+        ]
+      }
+    },
+    {
+      "fullUrl": "urn:uuid:142454e9-d444-4610-9588-10f1c0ac0181",
+      "resource": {
+        "resourceType": "Observation",
+        "identifier": [
+          {
+            "value": "914694928301-2-3"
+          }
+        ],
+        "status": "final",
+        "category": [
+          {
+            "coding": [
+              {
+                "system": "http://terminology.hl7.org/CodeSystem/observation-category",
+                "code": "laboratory",
+                "display": "Laboratory"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "coding": [
+            {
+              "code": "B0314",
+              "display": "Platelet (PLT) count"
+            }
+          ]
+        },
+        "subject": {
+          "reference": "urn:uuid:a26cc7ff-c97b-4c7e-a2d1-b906fa704588"
+        },
+        "encounter": {
+          "reference": "urn:uuid:5e66d610-f72a-472c-b459-e04eb3e043a4"
+        },
+        "effectiveDateTime": "2018-03-09T15:00:00+00:00",
+        "valueQuantity": {
+          "value": 500,
+          "unit": "x10^9/L"
+        },
+        "interpretation": [
+          {
+            "coding": [
+              {
+                "system": "http://terminology.hl7.org/CodeSystem/v3-ObservationInterpretation",
+                "code": "H",
+                "display": "High"
+              }
+            ]
+          }
+        ],
+        "referenceRange": [
+          {
+            "text": "150-400"
+          }
+        ]
+      }
+    },
+    {
+      "fullUrl": "urn:uuid:013ededa-e403-4799-b944-be0131d30a7d",
+      "resource": {
+        "resourceType": "Observation",
+        "identifier": [
+          {
+            "value": "914694928301-2-4"
+          }
+        ],
+        "status": "final",
+        "category": [
+          {
+            "coding": [
+              {
+                "system": "http://terminology.hl7.org/CodeSystem/observation-category",
+                "code": "laboratory",
+                "display": "Laboratory"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "coding": [
+            {
+              "code": "B0306",
+              "display": "Red blood cell (RBC) count"
+            }
+          ]
+        },
+        "subject": {
+          "reference": "urn:uuid:a26cc7ff-c97b-4c7e-a2d1-b906fa704588"
+        },
+        "encounter": {
+          "reference": "urn:uuid:5e66d610-f72a-472c-b459-e04eb3e043a4"
+        },
+        "effectiveDateTime": "2018-03-09T15:00:00+00:00",
+        "valueQuantity": {
+          "value": 6,
+          "unit": "x10^12/L"
+        },
+        "interpretation": [
+          {
+            "coding": [
+              {
+                "system": "http://terminology.hl7.org/CodeSystem/v3-ObservationInterpretation",
+                "code": "N",
+                "display": "Normal"
+              }
+            ]
+          }
+        ],
+        "referenceRange": [
+          {
+            "text": "4.50-6.00"
+          }
+        ]
+      }
+    },
+    {
+      "fullUrl": "urn:uuid:9f095865-a743-4a64-b9c8-84f335a2912f",
+      "resource": {
+        "resourceType": "Observation",
+        "identifier": [
+          {
+            "value": "914694928301-2-5"
+          }
+        ],
+        "status": "final",
+        "category": [
+          {
+            "coding": [
+              {
+                "system": "http://terminology.hl7.org/CodeSystem/observation-category",
+                "code": "laboratory",
+                "display": "Laboratory"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "coding": [
+            {
+              "code": "B0308",
+              "display": "Haematocrit (Hct)"
+            }
+          ]
+        },
+        "subject": {
+          "reference": "urn:uuid:a26cc7ff-c97b-4c7e-a2d1-b906fa704588"
+        },
+        "encounter": {
+          "reference": "urn:uuid:5e66d610-f72a-472c-b459-e04eb3e043a4"
+        },
+        "effectiveDateTime": "2018-03-09T15:00:00+00:00",
+        "valueQuantity": {
+          "value": 0.6,
+          "unit": "L/L"
+        },
+        "interpretation": [
+          {
+            "coding": [
+              {
+                "system": "http://terminology.hl7.org/CodeSystem/v3-ObservationInterpretation",
+                "code": "H",
+                "display": "High"
+              }
+            ]
+          }
+        ],
+        "referenceRange": [
+          {
+            "text": "0.40-0.52"
+          }
+        ]
+      }
+    },
+    {
+      "fullUrl": "urn:uuid:f16ba7d2-93ec-4c2f-abca-75ed4ca59df5",
+      "resource": {
+        "resourceType": "Observation",
+        "identifier": [
+          {
+            "value": "914694928301-2-6"
+          }
+        ],
+        "status": "final",
+        "category": [
+          {
+            "coding": [
+              {
+                "system": "http://terminology.hl7.org/CodeSystem/observation-category",
+                "code": "laboratory",
+                "display": "Laboratory"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "coding": [
+            {
+              "code": "B0309",
+              "display": "Mean cell volume (MCV)"
+            }
+          ]
+        },
+        "subject": {
+          "reference": "urn:uuid:a26cc7ff-c97b-4c7e-a2d1-b906fa704588"
+        },
+        "encounter": {
+          "reference": "urn:uuid:5e66d610-f72a-472c-b459-e04eb3e043a4"
+        },
+        "effectiveDateTime": "2018-03-09T15:00:00+00:00",
+        "valueQuantity": {
+          "value": 120,
+          "unit": "fL"
+        },
+        "interpretation": [
+          {
+            "coding": [
+              {
+                "system": "http://terminology.hl7.org/CodeSystem/v3-ObservationInterpretation",
+                "code": "H",
+                "display": "High"
+              }
+            ]
+          }
+        ],
+        "referenceRange": [
+          {
+            "text": "80-100"
+          }
+        ]
+      }
+    },
+    {
+      "fullUrl": "urn:uuid:609fe923-e837-4799-8d44-1371ed2de9cc",
+      "resource": {
+        "resourceType": "Observation",
+        "identifier": [
+          {
+            "value": "914694928301-2-7"
+          }
+        ],
+        "status": "final",
+        "category": [
+          {
+            "coding": [
+              {
+                "system": "http://terminology.hl7.org/CodeSystem/observation-category",
+                "code": "laboratory",
+                "display": "Laboratory"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "coding": [
+            {
+              "code": "B0310",
+              "display": "Mean cell haemoglobin (MCH)"
+            }
+          ]
+        },
+        "subject": {
+          "reference": "urn:uuid:a26cc7ff-c97b-4c7e-a2d1-b906fa704588"
+        },
+        "encounter": {
+          "reference": "urn:uuid:5e66d610-f72a-472c-b459-e04eb3e043a4"
+        },
+        "effectiveDateTime": "2018-03-09T15:00:00+00:00",
+        "valueQuantity": {
+          "value": 34,
+          "unit": "pg"
+        },
+        "interpretation": [
+          {
+            "coding": [
+              {
+                "system": "http://terminology.hl7.org/CodeSystem/v3-ObservationInterpretation",
+                "code": "H",
+                "display": "High"
+              }
+            ]
+          }
+        ],
+        "referenceRange": [
+          {
+            "text": "27.0-33.0"
+          }
+        ]
+      }
+    }
+  ]
+}

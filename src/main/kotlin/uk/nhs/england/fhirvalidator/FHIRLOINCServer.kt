@@ -7,6 +7,7 @@ import com.amazonaws.services.sqs.AmazonSQS
 import com.fasterxml.jackson.databind.ObjectMapper
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.beans.factory.annotation.Qualifier
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import uk.nhs.england.fhirvalidator.configuration.FHIRServerProperties
 import uk.nhs.england.fhirvalidator.configuration.MessageProperties
 import uk.nhs.england.fhirvalidator.interceptor.AWSAuditEventLoggingInterceptor
@@ -17,6 +18,7 @@ import uk.nhs.england.fhirvalidator.providerLOINC.ValueSetLOINCProvider
 import java.util.*
 import javax.servlet.annotation.WebServlet
 
+@ConditionalOnProperty(prefix = "services", name = ["LOINC"])
 @WebServlet("/LOINC/R4/*", loadOnStartup = 1)
 class FHIRLOINCServer(
     @Qualifier("R4") fhirContext: FhirContext,
