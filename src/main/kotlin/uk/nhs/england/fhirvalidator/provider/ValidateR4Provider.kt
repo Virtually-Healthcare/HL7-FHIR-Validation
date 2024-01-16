@@ -180,7 +180,7 @@ class ValidateR4Provider (
                     additionalIssues.add(it)
                 }
             }
-            result = validator.validateWithResult(resource).toOperationOutcome() as? OperationOutcome
+            result = validator.validateWithResult(fhirContext.newJsonParser().setPrettyPrint(true).encodeResourceToString(resource)).toOperationOutcome() as? OperationOutcome
         }
         if (result !== null) {
             additionalIssues.forEach{
