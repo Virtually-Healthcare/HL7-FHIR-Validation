@@ -42,12 +42,22 @@ class CapabilityStatementInterceptor(
             manifest = objectMapper.readValue(configurationInputStream, Array<SimplifierPackage>::class.java)
         }
         if (manifest != null) {
+
             manifest.forEach {
                 val packageExtension = Extension();
                 packageExtension.url="FHIRPackage"
                 packageExtension.extension.add(Extension().setUrl("name").setValue(StringType(it.packageName)))
                 packageExtension.extension.add(Extension().setUrl("version").setValue(StringType(it.version)))
                 apiextension.extension.add(packageExtension)
+                var implementationGuide = ImplementationGuide()
+                implementationGuide.packageId = it.packageName
+                implementationGuide.version = it.version
+                implementationGuide.status = Enumerations.PublicationStatus.UNKNOWN
+                implementationGuide.name = it.packageName
+                implementationGuide.url = "https://example.fhir.org/ImplementationGuide/"+it.packageName + "|" + it.version
+                implementationGuide.id = it.packageName
+                cs.implementationGuide.add(CanonicalType("#" + it.packageName))
+                cs.contained.add(implementationGuide)
             }
         }
         val packageExtension = Extension();

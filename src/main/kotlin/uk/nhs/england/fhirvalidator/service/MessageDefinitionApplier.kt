@@ -87,7 +87,7 @@ class MessageDefinitionApplier(
         matchingResources: List<IBaseResource>
     ) {
         if (focus.hasProfile()) {
-            applyProfile(matchingResources, focus.profileElement)
+            applyProfile(matchingResources, focus.profile)
         }
     }
 

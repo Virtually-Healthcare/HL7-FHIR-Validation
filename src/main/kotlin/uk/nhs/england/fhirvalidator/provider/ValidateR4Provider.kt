@@ -119,6 +119,12 @@ class ValidateR4Provider (
                             issue.diagnostics.contains("https://fhir.nhs.uk/CodeSystem/NHSDataModelAndDictionary-treatment-function")) {
                             issue.severity = OperationOutcome.IssueSeverity.INFORMATION
                         }
+                        // This is to downgrade onto server issues to information.
+                        if (!issue.diagnostics.contains(".uk") && (issue.diagnostics.contains("A usable code system with URL")
+                            || issue.diagnostics.contains("LOINC is not indexed!"))) {
+                            // This is probably ontology server issue so degrade warning to information
+                            issue.severity = OperationOutcome.IssueSeverity.INFORMATION
+                        }
                     }
                 }
             } else {

@@ -8,6 +8,10 @@
     "version": "1.1.0"
   },
   {
+    "packageName": "hl7.fhir.uv.sdc",
+    "version": "3.0.0"
+  },
+  {
     "packageName": "fhir.r4.nhsengland.diagnostics",
     "version": "0.0.0-prerelease"
   }

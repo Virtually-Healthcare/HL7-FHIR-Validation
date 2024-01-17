@@ -832,6 +832,8 @@ open class OpenApiConfig(@Qualifier("R4") val ctx : FhirContext,
                 packages +=  "[https://build.fhir.org/ig/hl7-eu/laboratory/](https://build.fhir.org/ig/hl7-eu/laboratory/)"
             } else if (it.packageName.contains("hl7.fhir.uv.ips")) {
                 packages +=  "[International Patient Summary Implementation Guide](https://build.fhir.org/ig/HL7/fhir-ips/)"
+            } else if (it.packageName.contains("hl7.fhir.uv.sdc")) {
+                packages += "[Structured Data Capture](https://build.fhir.org/ig/HL7/sdc/)"
             }
             packages +=  " | \n"
         }
