@@ -4,6 +4,7 @@ import org.hl7.fhir.common.hapi.validation.support.ValidationSupportChain
 import uk.nhs.england.fhirvalidator.util.applyProfile
 import uk.nhs.england.fhirvalidator.util.getResourcesOfType
 import org.hl7.fhir.instance.model.api.IBaseResource
+import org.hl7.fhir.r4.model.CanonicalType
 import org.hl7.fhir.r4.model.CapabilityStatement
 import org.springframework.stereotype.Service
 
@@ -19,22 +20,29 @@ class CapabilityStatementApplier(
         ?.flatMap { it.rest }
         ?.flatMap { it.resource }
 
-    fun applyCapabilityStatementProfiles(resource: IBaseResource) {
-        restResources?.forEach { applyRestResource(resource, it) }
+    fun applyCapabilityStatementProfiles(resource: IBaseResource, importProfile: Boolean?) {
+        restResources?.forEach { applyRestResource(resource, it, importProfile) }
     }
 
     private fun applyRestResource(
         resource: IBaseResource,
-        restResource: CapabilityStatement.CapabilityStatementRestResourceComponent
+        restResource: CapabilityStatement.CapabilityStatementRestResourceComponent,
+        importProfile: Boolean?
     ) {
         val matchingResources = getResourcesOfType(resource, restResource.type)
         if (restResource.hasProfile()) {
             applyProfile(matchingResources, restResource.profile)
         }
-        if (restResource.hasSupportedProfile()) {
-            restResource.supportedProfile.forEach{
-                applyProfile(matchingResources, it.value)
+        if (importProfile !== null && importProfile && restResource.hasExtension()) {
+            restResource.extension.forEach{
+                if (it.hasUrl()
+                    && it.url.equals("http://hl7.org/fhir/StructureDefinition/structuredefinition-imposeProfile")
+                    && it.hasValue() && it.value is CanonicalType) {
+                        val canonicalType =  it.value as CanonicalType
+                        applyProfile(matchingResources, canonicalType.value)
+                }
             }
+
         }
     }
 

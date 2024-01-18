@@ -369,7 +369,7 @@ class VerifyOAS(@Qualifier("R4") private val ctx: FhirContext?,
 
     fun validateResource(resource: IBaseResource, profile: String?): OperationOutcome? {
         if (profile != null) return fhirValidator.validateWithResult(resource, ValidationOptions().addProfile(profile)).toOperationOutcome() as? OperationOutcome
-        capabilityStatementApplier.applyCapabilityStatementProfiles(resource)
+        capabilityStatementApplier.applyCapabilityStatementProfiles(resource, false)
         val messageDefinitionErrors = messageDefinitionApplier.applyMessageDefinition(resource)
         if (messageDefinitionErrors != null) {
             return messageDefinitionErrors

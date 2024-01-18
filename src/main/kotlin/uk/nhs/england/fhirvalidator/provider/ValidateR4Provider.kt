@@ -99,15 +99,18 @@ class ValidateR4Provider (
         @Validate.Profile parameterResourceProfile: String?
     ): MethodOutcome {
         var profile = parameterResourceProfile ?: servletRequest.getParameter("profile")
+        var importProfileParam = parameterResourceProfile ?: servletRequest.getParameter("imposeProfile")
+        var importProfile = false
+        if (importProfileParam !== null && importProfileParam.equals("true")) importProfile = true
         if (profile!= null) profile = URLDecoder.decode(profile, StandardCharsets.UTF_8.name());
         var operationOutcome : OperationOutcome? = null
         if (resource == null && theRequestDetails.resource == null) throw UnprocessableEntityException("Not resource supplied to validation")
         if (resource == null) {
             // This should cope with Parameters resources being passed in
-            operationOutcome = parseAndValidateResource(theRequestDetails.resource, profile)
+            operationOutcome = parseAndValidateResource(theRequestDetails.resource, profile, importProfile)
 
         } else {
-            operationOutcome = parseAndValidateResource(resource, profile)
+            operationOutcome = parseAndValidateResource(resource, profile, importProfile)
         }
         val methodOutcome = MethodOutcome()
         if (operationOutcome != null ) {
@@ -151,10 +154,10 @@ class ValidateR4Provider (
 
      */
 
-    fun parseAndValidateResource(inputResource: IBaseResource, profile: String?): OperationOutcome {
+    fun parseAndValidateResource(inputResource: IBaseResource, profile: String?, importProfile: Boolean?): OperationOutcome {
         return try {
             val resources = getResourcesToValidate(inputResource)
-            val operationOutcomeList = resources.map { validateResource(it, profile) }
+            val operationOutcomeList = resources.map { validateResource(it, profile, importProfile) }
             val operationOutcomeIssues = operationOutcomeList.filterNotNull().flatMap { it.issue }
             return createOperationOutcome(operationOutcomeIssues)
         } catch (e: DataFormatException) {
@@ -163,7 +166,7 @@ class ValidateR4Provider (
         }
     }
 
-    fun validateResource(resource: IBaseResource, profile: String?): OperationOutcome? {
+    fun validateResource(resource: IBaseResource, profile: String?,  importProfile: Boolean?): OperationOutcome? {
         var additionalIssues = ArrayList<OperationOutcomeIssueComponent>()
         if (resource is Resource) {
             if (resource.hasMeta() && resource.meta.hasProfile()) {
@@ -179,7 +182,7 @@ class ValidateR4Provider (
             result = validator.validateWithResult(resource, ValidationOptions().addProfile(profile))
                 .toOperationOutcome() as? OperationOutcome
         } else {
-            capabilityStatementApplier.applyCapabilityStatementProfiles(resource)
+            capabilityStatementApplier.applyCapabilityStatementProfiles(resource, importProfile)
             val messageDefinitionErrors = messageDefinitionApplier.applyMessageDefinition(resource)
             if (messageDefinitionErrors != null) {
                 messageDefinitionErrors.issue.forEach{

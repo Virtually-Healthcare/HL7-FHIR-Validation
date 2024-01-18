@@ -4,6 +4,10 @@
     "version": "0.0.8-pre-release"
   },
   {
+    "packageName": "fhir.r4.nhsengland.stu1",
+    "version": "1.1.0"
+  },
+  {
     "packageName": "hl7.fhir.uv.ips",
     "version": "1.1.0"
   },
@@ -12,7 +16,7 @@
     "version": "3.0.0"
   },
   {
-    "packageName": "fhir.r4.nhsengland.diagnostics",
+    "packageName": "uk.nhsengland.r4",
     "version": "0.0.0-prerelease"
   }
 ]

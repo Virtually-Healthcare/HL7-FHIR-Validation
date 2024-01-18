@@ -69,7 +69,7 @@ class CapabilityStatementInterceptor(
 
 
         for (resourceIG in supportChain.fetchAllConformanceResources()?.filterIsInstance<CapabilityStatement>()!!) {
-            if (!resourceIG.url.contains("sdc") && !resourceIG.url.contains("us.core")) {
+            if (resourceIG.url.contains(".uk")) {
                 for (restComponent in resourceIG.rest) {
                     for (component in restComponent.resource) {
 
@@ -80,12 +80,33 @@ class CapabilityStatementInterceptor(
                                 resourceComponent.profile = component.profile
                             } else {
                                 // add this to CapabilityStatement to indicate profile being valiated against
-                                cs.restFirstRep.resource.add(
-                                    CapabilityStatement.CapabilityStatementRestResourceComponent().setType(component.type)
-                                        .setProfile(component.profile)
-                                )
+                                resourceComponent = CapabilityStatement.CapabilityStatementRestResourceComponent().setType(component.type)
+                                    .setProfile(component.profile)
+                                cs.restFirstRep.resource.add(resourceComponent)
                             }
-
+                            if (component.hasExtension()) {
+                                component.extension.forEach{
+                                    if (it.url.equals("http://hl7.org/fhir/StructureDefinition/structuredefinition-imposeProfile")) {
+                                        var found = false
+                                        if (resourceComponent !== null) {
+                                            if (resourceComponent.hasExtension()) {
+                                                for (extension in resourceComponent.extension) {
+                                                    if (extension.url.equals("http://hl7.org/fhir/StructureDefinition/structuredefinition-imposeProfile")) {
+                                                        if (extension.hasValue() && it.hasValue() && it.value is CanonicalType && extension.value is CanonicalType) {
+                                                            if ((extension.value as CanonicalType).value.equals((it.value as CanonicalType).value)) {
+                                                                found = true
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                            if (!found) {
+                                                resourceComponent.extension.add(it)
+                                            }
+                                        }
+                                    }
+                                }
+                            }
                         }
                     }
                 }

@@ -102,17 +102,17 @@ open class OpenApiConfig(@Qualifier("R4") val ctx : FhirContext,
         examples.put("Patient PDS",
             Example().value(OASExamples().loadFHIRExample("Patient-PDS.json",ctx))
         )
-        examples.put("Encounter converted from HL7 v2 ADT",
-            Example().value(OASExamples().loadFHIRExample("Encounter-ADTA03.json",ctx))
+        examples.put("FHIR Message - Diagnostics Report (Unsolicited Observations)",
+            Example().value(OASExamples().loadFHIRExample("Bundle-message-Diagnostics-unsolicited-observations.json",ctx))
         )
-        examples.put("Referrals - FHIR Message example",
-            Example().value(OASExamples().loadFHIRExample("Bundle-message-Referrals.json",ctx))
+        examples.put("FHIR Message - Diagnostics Request (Laboratory Order)",
+            Example().value(OASExamples().loadFHIRExample("Bundle-message-Diagnostics-laboratory-order.json",ctx))
         )
-        examples.put("Diagnostics - FHIR Message example",
-            Example().value(OASExamples().loadFHIRExample("Bundle-message-Diagnostics.json",ctx))
+        examples.put("FHIR Message - Medications Request (Prescription Order)",
+            Example().value(OASExamples().loadFHIRExample("Bundle-message-Medications-prescription-order.json",ctx))
         )
-        examples.put("Diagnostics - FHIR Message transformed from HL7 v2 ORU_R01 (DHCW)",
-            Example().value(OASExamples().loadFHIRExample("Bundle-message-ORU-R01.json",ctx))
+        examples.put("FHIR Message - Medications Event (Dispense Notification)",
+            Example().value(OASExamples().loadFHIRExample("Bundle-message-Medications-dispense-notification.json",ctx))
         )
         val validateItem = PathItem()
             .post(
@@ -128,6 +128,14 @@ open class OpenApiConfig(@Qualifier("R4") val ctx : FhirContext,
                         .style(Parameter.StyleEnum.SIMPLE)
                         .description("The uri that identifies the profile (e.g. https://fhir.hl7.org.uk/StructureDefinition/UKCore-Patient). If no profile uri is supplied, NHS England defaults will be used.")
                        // Removed example profile
+                        .schema(StringSchema().format("token")))
+                    .addParametersItem(Parameter()
+                        .name("imposeProfile")
+                        .`in`("query")
+                        .required(false)
+                        .style(Parameter.StyleEnum.SIMPLE)
+                        .description("`true | false`. Selected true will also validate the resource against the imposeProfile listed in this servers CapabilityStatement")
+                        // Removed example profile
                         .schema(StringSchema().format("token")))
                     .requestBody(RequestBody().content(Content()
                         .addMediaType("application/fhir+json", MediaType()
@@ -834,6 +842,8 @@ open class OpenApiConfig(@Qualifier("R4") val ctx : FhirContext,
                 packages +=  "[International Patient Summary Implementation Guide](https://build.fhir.org/ig/HL7/fhir-ips/)"
             } else if (it.packageName.contains("hl7.fhir.uv.sdc")) {
                 packages += "[Structured Data Capture](https://build.fhir.org/ig/HL7/sdc/)"
+            } else if (it.packageName.contains("fhir.r4.nhsengland")) {
+                packages += "[NHS England Pathology Implementation Guide](https://simplifier.net/guide/nhs-england-implementation-guide-version-history)"
             }
             packages +=  " | \n"
         }
