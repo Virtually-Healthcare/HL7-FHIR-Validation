@@ -844,6 +844,8 @@ open class OpenApiConfig(@Qualifier("R4") val ctx : FhirContext,
                 packages += "[Structured Data Capture](https://build.fhir.org/ig/HL7/sdc/)"
             } else if (it.packageName.contains("fhir.r4.nhsengland")) {
                 packages += "[NHS England Pathology Implementation Guide](https://simplifier.net/guide/nhs-england-implementation-guide-version-history)"
+            } else if (it.packageName.contains("hl7.fhir.uv.ipa")) {
+                packages += "[International Patient Access](https://build.fhir.org/ig/HL7/fhir-ipa/index.html)"
             }
             packages +=  " | \n"
         }

@@ -16,6 +16,10 @@
     "version": "3.0.0"
   },
   {
+    "packageName": "hl7.fhir.uv.ipa",
+    "version": "1.0.0"
+  },
+  {
     "packageName": "uk.nhsengland.r4",
     "version": "0.0.0-prerelease"
   }
