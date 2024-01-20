@@ -20,6 +20,10 @@
     "version": "1.0.0"
   },
   {
+    "packageName": "hl7.fhir.eu.laboratory",
+    "version": "0.1.0-ballot"
+  },
+  {
     "packageName": "uk.nhsengland.r4",
     "version": "0.0.0-prerelease"
   }

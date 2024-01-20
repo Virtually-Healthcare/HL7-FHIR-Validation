@@ -837,7 +837,7 @@ open class OpenApiConfig(@Qualifier("R4") val ctx : FhirContext,
             } else if (it.packageName.contains("diagnostics")) {
                 packages +=  "[NHS England Pathology Implementation Guide](https://simplifier.net/guide/pathology-fhir-implementation-guide)"
             } else if (it.packageName.contains("eu.laboratory")) {
-                packages +=  "[https://build.fhir.org/ig/hl7-eu/laboratory/](https://build.fhir.org/ig/hl7-eu/laboratory/)"
+                packages +=  "[HL7 Europe Laboratory Report](https://build.fhir.org/ig/hl7-eu/laboratory/)"
             } else if (it.packageName.contains("hl7.fhir.uv.ips")) {
                 packages +=  "[International Patient Summary Implementation Guide](https://build.fhir.org/ig/HL7/fhir-ips/)"
             } else if (it.packageName.contains("hl7.fhir.uv.sdc")) {

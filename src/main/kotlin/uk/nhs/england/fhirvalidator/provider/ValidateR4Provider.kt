@@ -179,6 +179,7 @@ class ValidateR4Provider (
         }
         var result : OperationOutcome? = null
         if (profile != null) {
+            if (importProfile !== null && importProfile) capabilityStatementApplier.applyCapabilityStatementProfiles(resource, importProfile)
             result = validator.validateWithResult(resource, ValidationOptions().addProfile(profile))
                 .toOperationOutcome() as? OperationOutcome
         } else {
