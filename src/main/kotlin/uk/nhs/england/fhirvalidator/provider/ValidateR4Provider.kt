@@ -18,6 +18,7 @@ import org.hl7.fhir.r4.utils.FHIRPathEngine
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.stereotype.Component
 import uk.nhs.england.fhirvalidator.service.CapabilityStatementApplier
+import uk.nhs.england.fhirvalidator.service.FHIRDocumentApplier
 import uk.nhs.england.fhirvalidator.service.MessageDefinitionApplier
 import uk.nhs.england.fhirvalidator.util.createOperationOutcome
 import java.net.URLDecoder
@@ -30,7 +31,8 @@ class ValidateR4Provider (
     @Qualifier("SupportChain") private val supportChain: IValidationSupport,
     private val validator: FhirValidator,
     private val messageDefinitionApplier: MessageDefinitionApplier,
-    private val capabilityStatementApplier: CapabilityStatementApplier
+    private val capabilityStatementApplier: CapabilityStatementApplier,
+    private val fhirDocumentApplier: FHIRDocumentApplier
 
 ) {
     companion object : KLogging()
@@ -180,6 +182,7 @@ class ValidateR4Provider (
         var result : OperationOutcome? = null
         if (profile != null) {
             if (importProfile !== null && importProfile) capabilityStatementApplier.applyCapabilityStatementProfiles(resource, importProfile)
+            if (importProfile !== null && importProfile && resource is Bundle) fhirDocumentApplier.applyDocumentDefinition(resource)
             result = validator.validateWithResult(resource, ValidationOptions().addProfile(profile))
                 .toOperationOutcome() as? OperationOutcome
         } else {
@@ -190,6 +193,7 @@ class ValidateR4Provider (
                     additionalIssues.add(it)
                 }
             }
+            if (importProfile !== null && importProfile && resource is Bundle) fhirDocumentApplier.applyDocumentDefinition(resource)
             result = validator.validateWithResult(fhirContext.newJsonParser().setPrettyPrint(true).encodeResourceToString(resource)).toOperationOutcome() as? OperationOutcome
         }
         if (result !== null) {

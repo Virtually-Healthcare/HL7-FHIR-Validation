@@ -34,6 +34,7 @@ public final class FhirSystems {
     public static final String EMIS_PRACTITIONER_IDENTIFIER = "https://emis.com/Id/Practitioner/DBID";
 
     public static final String SNOMED_CT = "http://snomed.info/sct";
+    public static final String LOINC = " http://loinc.org";
 
     public static final String DMandD= "https://dmd.nhs.uk";
 
