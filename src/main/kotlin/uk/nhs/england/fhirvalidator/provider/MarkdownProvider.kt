@@ -1,16 +1,11 @@
 package uk.nhs.england.fhirvalidator.provider
 
-import ca.uhn.fhir.context.FhirContext
 import ca.uhn.fhir.rest.annotation.Operation
 import ca.uhn.fhir.rest.annotation.OperationParam
 import ca.uhn.fhir.rest.param.StringParam
-import ca.uhn.fhir.validation.FhirValidator
 import mu.KLogging
 import org.springframework.stereotype.Component
-import uk.nhs.england.fhirvalidator.service.CapabilityStatementApplier
-import uk.nhs.england.fhirvalidator.service.MessageDefinitionApplier
 import uk.nhs.england.fhirvalidator.service.OpenAPIParser
-import uk.nhs.england.fhirvalidator.service.VerifyOAS
 import java.nio.charset.StandardCharsets
 import javax.servlet.http.HttpServletRequest
 import javax.servlet.http.HttpServletResponse

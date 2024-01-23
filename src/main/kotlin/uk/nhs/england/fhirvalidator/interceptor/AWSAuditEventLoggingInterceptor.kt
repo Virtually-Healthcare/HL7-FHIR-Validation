@@ -83,10 +83,13 @@ class AWSAuditEventLoggingInterceptor(
                         }
                     }
                 } catch (io: InvalidRequestException) {
-                    System.out.println("Issue Processing - " + theRequestDetails.requestPath)
+                    System.out.println("InvalidRequestException Issue Processing - " + theRequestDetails.requestPath)
                 }
                 catch (io: IOException) {
-                    System.out.println("Issue Processing - " + theRequestDetails.requestPath)
+                    System.out.println("IOException Issue Processing - " + theRequestDetails.requestPath)
+                }
+                catch (io: IllegalStateException) {
+                    System.out.println("IllegalStateException Issue Processing - " + theRequestDetails.requestPath)
                 }
             }
         }

@@ -2,22 +2,17 @@ package uk.nhs.england.fhirvalidator.provider
 
 import ca.uhn.fhir.context.FhirContext
 import ca.uhn.fhir.rest.annotation.Operation
-import ca.uhn.fhir.rest.annotation.OperationParam
-import io.swagger.util.Yaml
 import io.swagger.v3.core.util.Json
 import io.swagger.v3.oas.models.OpenAPI
 import io.swagger.v3.parser.OpenAPIV3Parser
 import io.swagger.v3.parser.core.models.ParseOptions
 import io.swagger.v3.parser.core.models.SwaggerParseResult
 import org.apache.commons.io.IOUtils
-import org.hl7.fhir.instance.model.api.IBaseResource
-import org.hl7.fhir.r4.model.BooleanType
 import org.hl7.fhir.r4.model.CapabilityStatement
 import org.hl7.fhir.r4.model.OperationOutcome
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.stereotype.Component
-import uk.nhs.england.fhirvalidator.service.OpenAPIParser
-import uk.nhs.england.fhirvalidator.service.VerifyOAS
+import uk.nhs.england.fhirvalidator.service.OASSupport
 import uk.nhs.england.fhirvalidator.util.createOperationOutcome
 import javax.servlet.http.HttpServletRequest
 import javax.servlet.http.HttpServletResponse
@@ -26,7 +21,7 @@ import javax.servlet.http.HttpServletResponse
 @Component
 class OpenAPIProvider(@Qualifier("R4") private val fhirContext: FhirContext,
 
-                      private val verifyOAS: VerifyOAS
+                      private val OASSupport: OASSupport
 ) {
 
     @Operation(name = "convertOAS", idempotent = true,manualResponse=true, manualRequest=true)
@@ -41,6 +36,20 @@ class OpenAPIProvider(@Qualifier("R4") private val fhirContext: FhirContext,
         servletResponse.writer.flush()
         return
     }
+
+    @Operation(name = "convertOAStoFHIR", idempotent = true, manualRequest=true)
+    fun convertOAStoFHIR(
+        servletRequest: HttpServletRequest,
+        servletResponse: HttpServletResponse
+    ) : CapabilityStatement {
+        var input = IOUtils.toString(servletRequest.getReader());
+        var openAPI : OpenAPI? = null
+        openAPI = OpenAPIV3Parser().readContents(input).openAPI
+        var capabilityStatement = OASSupport.convert(openAPI)
+        return capabilityStatement
+    }
+
+
 
     @Operation(name = "verifyOAS", idempotent = true,manualResponse=true, manualRequest=true)
     fun verifyOAS(
@@ -81,7 +90,7 @@ class OpenAPIProvider(@Qualifier("R4") private val fhirContext: FhirContext,
 
 
         if (openAPI !=null) {
-            val results = verifyOAS.validate(openAPI)
+            val results = OASSupport.validate(openAPI)
             var outcome = createOperationOutcome(results)
             if (oasResult !== null && oasResult.getMessages() != null) {
                 oasResult.getMessages().forEach({

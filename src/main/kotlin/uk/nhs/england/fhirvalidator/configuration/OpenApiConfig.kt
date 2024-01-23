@@ -669,6 +669,41 @@ open class OpenApiConfig(@Qualifier("R4") val ctx : FhirContext,
             )
         oas.path("/FHIR/R4/\$verifyOAS",verifyOASItem)
 
+        val convertOASItem = PathItem()
+            .post(
+                Operation()
+                    .addTagsItem(EXPERIMENTAL)
+                    .summary("Converts OAS in YAML to JSON format")
+                    .description("This is a proof of concept.")
+                    .responses(getApiResponsesRAWJSON())
+                    .requestBody(RequestBody().content(Content()
+                        .addMediaType("application/x-yaml",MediaType().schema(StringSchema()))
+                        .addMediaType("application/json",MediaType().examples(examplesOAS)
+                            .schema(StringSchema()))
+                        )
+                    )
+            )
+        oas.path("/FHIR/R4/\$convertOAS",convertOASItem)
+
+        val convertOAStoFHIRItem = PathItem()
+            .post(
+                Operation()
+                    .addTagsItem(EXPERIMENTAL)
+                    .summary("Converts OAS in YAML/JSON format to FHIR CapabilityStatement")
+                    .description("This is a proof of concept.")
+                    .responses(getApiResponsesRAWJSON())
+                    .requestBody(RequestBody().content(Content()
+                        .addMediaType("application/x-yaml",MediaType().schema(StringSchema()))
+                        .addMediaType("application/json",MediaType().examples(examplesOAS)
+                            .schema(StringSchema()))
+                    )
+                    )
+            )
+        oas.path("/FHIR/R4/\$convertOAStoFHIR",convertOAStoFHIRItem)
+
+
+
+
         val convertToTextItem = PathItem()
             .post(
                 Operation()
@@ -806,6 +841,8 @@ open class OpenApiConfig(@Qualifier("R4") val ctx : FhirContext,
         val apiResponses = ApiResponses().addApiResponse("200",response200)
         return apiResponses
     }
+
+
 
     fun getApiResponsesRAWJSON() : ApiResponses {
 

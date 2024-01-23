@@ -18,6 +18,7 @@ import io.swagger.v3.oas.models.responses.ApiResponses
 import io.swagger.v3.oas.models.servers.Server
 import io.swagger.v3.oas.models.tags.Tag
 import org.apache.commons.lang3.StringUtils
+import org.apache.commons.text.StringEscapeUtils
 import org.hl7.fhir.instance.model.api.IBaseResource
 import org.hl7.fhir.instance.model.api.IPrimitiveType
 import org.hl7.fhir.r4.model.*
@@ -56,7 +57,7 @@ class OpenAPIParser(@Qualifier("R4") private val ctx: FhirContext,
         cs = _cs
         val openApi = OpenAPI()
         openApi.info = Info()
-        openApi.info.description = cs.description
+        openApi.info.description = unescapeMarkdown(cs.description)
         if (openApi.info.description == null) openApi.info.description = ""
         openApi.info.title = cs.software.name
         openApi.info.version = cs.software.version
@@ -454,6 +455,10 @@ class OpenAPIParser(@Qualifier("R4") private val ctx: FhirContext,
         }
     }
 
+    fun unescapeMarkdown(markdown : String ) : String {
+        return StringEscapeUtils.unescapeHtml4(markdown)
+    }
+
     private fun addJSONSchema(openApi: OpenAPI) {
         // Add schema
 
@@ -700,7 +705,7 @@ class OpenAPIParser(@Qualifier("R4") private val ctx: FhirContext,
             theOperation.addTagsItem(theResourceType)
         }
         theOperation.summary = theOperationDefinition!!.title
-        theOperation.description = theOperationDefinition.description
+        theOperation.description = unescapeMarkdown(theOperationDefinition.description)
         if (theOperationComponent.hasExtension("https://fhir.nhs.uk/StructureDefinition/Extension-NHSDigital-CapabilityStatement-Examples")) {
             //
             val exampleOperation = getOperationResponeExample(theOperationComponent)
@@ -734,7 +739,7 @@ class OpenAPIParser(@Qualifier("R4") private val ctx: FhirContext,
                 theOperation.addParametersItem(parametersItem)
                 parametersItem.name = nextParameter.name
                 parametersItem.setIn("query")
-                parametersItem.description = nextParameter.documentation
+                parametersItem.description = unescapeMarkdown(nextParameter.documentation)
                 parametersItem.style = Parameter.StyleEnum.SIMPLE
                 parametersItem.required = nextParameter.min > 0
                 val exampleExtensions = nextParameter.getExtensionsByUrl(HapiExtensions.EXT_OP_PARAMETER_EXAMPLE_VALUE)
@@ -928,7 +933,7 @@ class OpenAPIParser(@Qualifier("R4") private val ctx: FhirContext,
             theOperation.description += outDoc
         }
         if (theOperationDefinition.hasComment()) {
-            theOperation.description += "\n\n ## Comment \n\n"+theOperationDefinition.comment
+            theOperation.description += "\n\n ## Comment \n\n"+unescapeMarkdown(theOperationDefinition.comment)
         }
         if (theOperationDefinition.url.equals("http://hl7.org/fhir/OperationDefinition/MessageHeader-process-message")
             || theOperationDefinition.url.equals("https://fhir.nhs.uk/OperationDefinition/MessageHeader-process-message")) {
@@ -1151,7 +1156,7 @@ class OpenAPIParser(@Qualifier("R4") private val ctx: FhirContext,
                 if (resourceChain is MessageDefinition) {
                     if (resourceChain.url == supportedMessage.definition) {
                         if (resourceChain.hasDescription()) {
-                            example.summary = resourceChain.description
+                            example.summary = unescapeMarkdown(resourceChain.description)
                         }
                         if (resourceChain.hasPurpose()) {
                             supportedDocumentation += "\n ### Purpose" + resourceChain.purpose
@@ -1196,7 +1201,7 @@ class OpenAPIParser(@Qualifier("R4") private val ctx: FhirContext,
                 example.value = ctx?.newJsonParser()?.encodeResourceToString(messageExample?.get())
             }
         }
-        example.description = supportedDocumentation
+        example.description = unescapeMarkdown(supportedDocumentation)
         return example
     }
 
@@ -1251,7 +1256,7 @@ class OpenAPIParser(@Qualifier("R4") private val ctx: FhirContext,
                         exampleOAS.summary = (exampleExt.getExtensionString("summary") as String)
                     }
                     if (exampleExt.hasExtension("description")) {
-                        exampleOAS.description = (exampleExt.getExtensionString("description") as String)
+                        exampleOAS.description = unescapeMarkdown((exampleExt.getExtensionString("description") as String))
                     }
                 }
             }
@@ -1575,7 +1580,7 @@ class OpenAPIParser(@Qualifier("R4") private val ctx: FhirContext,
 
         var description = ""
         if (searchParameter?.description != null) {
-            var desc = searchParameter.description
+            var desc = unescapeMarkdown(searchParameter.description)
             if (desc.split("*").size>1) {
                 val exps = desc.split("*")
                 for (exp in exps) {
@@ -1751,7 +1756,7 @@ class OpenAPIParser(@Qualifier("R4") private val ctx: FhirContext,
                 if (structureDefinition is StructureDefinition) {
 
                     if (structureDefinition.hasDescription()) {
-                        schema.description += "\n\n " + structureDefinition.description
+                        schema.description += "\n\n " + unescapeMarkdown(structureDefinition.description)
                     }
                     if (structureDefinition.hasPurpose()) {
                         schema.description += "\n\n " + structureDefinition.purpose
@@ -1788,7 +1793,7 @@ class OpenAPIParser(@Qualifier("R4") private val ctx: FhirContext,
                             }
 
                             if (elementSchema != null) {
-                                elementSchema.description = getElementDescription(element)
+                                elementSchema.description = unescapeMarkdown(getElementDescription(element))
                                 if (element.hasMin()) elementSchema.minimum = BigDecimal(element.min)
 
 

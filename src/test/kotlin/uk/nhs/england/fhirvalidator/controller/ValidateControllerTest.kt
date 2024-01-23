@@ -6,15 +6,10 @@ import ca.uhn.fhir.validation.FhirValidator
 import uk.nhs.england.fhirvalidator.service.CapabilityStatementApplier
 import uk.nhs.england.fhirvalidator.service.MessageDefinitionApplier
 import org.hl7.fhir.r4.model.Bundle
-import org.hl7.fhir.r4.model.Patient
-import org.junit.jupiter.api.Assertions.*
-import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
-import org.mockito.InjectMocks
 import org.mockito.Mock
 import org.mockito.junit.jupiter.MockitoExtension
-import org.springframework.beans.factory.annotation.Qualifier
-import uk.nhs.england.fhirvalidator.service.VerifyOAS
+import uk.nhs.england.fhirvalidator.service.OASSupport
 
 @ExtendWith(MockitoExtension::class)
 internal class ValidateControllerTest {
@@ -37,7 +32,7 @@ internal class ValidateControllerTest {
     lateinit var mockSearchParameters : Bundle
 
     @Mock
-    lateinit var verifyOAS: VerifyOAS
+    lateinit var OASSupport: OASSupport
 
  /*
     @Test
