@@ -722,14 +722,17 @@ open class OpenApiConfig(@Qualifier("R4") val ctx : FhirContext,
                         .addMediaType("application/fhir+xml",MediaType().schema(StringSchema()))
                     )))
         oas.path("/FHIR/STU3/\$convertR4",convertR4Item)
-
+        val examplesCS = LinkedHashMap<String,Example?>()
+        examplesCS.put("UK Core Access Patient Provider",
+            Example().value(OASExamples().loadFHIRExample("UKCore-Access-Patient-Provider.json",ctx))
+        )
         val capabilityStatementItem = PathItem()
             .post(
                 Operation()
                     .addTagsItem(EXPERIMENTAL)
                     .summary("Converts a FHIR CapabilityStatement to openapi v3 format")
                     .responses(getApiResponsesMarkdown())
-                    .requestBody(RequestBody().content(Content().addMediaType("application/fhir+json",MediaType().schema(StringSchema()._default("{\"resourceType\":\"CapabilityStatement\"}")))))
+                    .requestBody(RequestBody().content(Content().addMediaType("application/fhir+json",MediaType().examples(examplesCS).schema(StringSchema()))))
             )
         oas.path("/FHIR/R4/\$openapi",capabilityStatementItem)
 
