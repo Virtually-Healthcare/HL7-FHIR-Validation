@@ -729,12 +729,20 @@ open class OpenApiConfig(@Qualifier("R4") val ctx : FhirContext,
         val capabilityStatementItem = PathItem()
             .post(
                 Operation()
-                    .addTagsItem(EXPERIMENTAL)
+                    .addTagsItem(UTILITY)
                     .summary("Converts a FHIR CapabilityStatement to openapi v3 format")
+                    .addParametersItem(Parameter()
+                        .name("addFHIRExtras")
+                        .`in`("query")
+                        .required(false)
+                        .style(Parameter.StyleEnum.SIMPLE)
+                        .description("`true | false`. Adds markdown documentation from FHIR Specification (do not rerun once it has been added)")
+                        // Removed example profile
+                        .schema(StringSchema().format("token")))
                     .responses(getApiResponsesMarkdown())
                     .requestBody(RequestBody().content(Content().addMediaType("application/fhir+json",MediaType().examples(examplesCS).schema(StringSchema()))))
             )
-        oas.path("/FHIR/R4/\$openapi",capabilityStatementItem)
+        oas.path("/FHIR/R4/CapabilityStatement/\$openapi",capabilityStatementItem)
 
         return oas
 

@@ -52,7 +52,7 @@ class OpenAPIParser(@Qualifier("R4") private val ctx: FhirContext,
 
 
 
-    fun generateOpenApi(_cs: CapabilityStatement): OpenAPI? {
+    fun generateOpenApi(_cs: CapabilityStatement, addFHIRBoilerPlater: Boolean): OpenAPI? {
         cs = _cs
         val openApi = OpenAPI()
         openApi.info = Info()
@@ -68,7 +68,7 @@ class OpenAPIParser(@Qualifier("R4") private val ctx: FhirContext,
             if (code.value.contains("xml")) generateXML = true
         }
 
-        if (cs.hasExtension("https://fhir.nhs.uk/StructureDefinition/Extension-NHSDigital-CapabilityStatement-Package")) {
+        if (addFHIRBoilerPlater && cs.hasExtension("https://fhir.nhs.uk/StructureDefinition/Extension-NHSDigital-CapabilityStatement-Package")) {
             val apiDefinition = cs.getExtensionByUrl("https://fhir.nhs.uk/StructureDefinition/Extension-NHSDigital-CapabilityStatement-Package")
             // Sample table:\n\n| One | Two | Three |\n|-----|-----|-------|\n| a   | b   | c     |
             if (apiDefinition.hasExtension("openApi")) {
@@ -122,10 +122,14 @@ class OpenAPIParser(@Qualifier("R4") private val ctx: FhirContext,
         serverTag.name = PAGE_SYSTEM
         serverTag.description = "Server-level operations"
         openApi.addTagsItem(serverTag)
+
+        /* This should be in the capability statement REMOVED
         val capabilitiesOperation = getPathItem(paths, "/metadata", PathItem.HttpMethod.GET)
         capabilitiesOperation.addTagsItem(PAGE_SYSTEM)
         capabilitiesOperation.summary = "server-capabilities: Fetch the server FHIR CapabilityStatement"
         addFhirResourceResponse(this.ctx, openApi, capabilitiesOperation, "CapabilityStatement",null,null,null)
+        */
+
         val systemInteractions =
             cs.restFirstRep.interaction.stream().map { t: CapabilityStatement.SystemInteractionComponent -> t.code }
                 .collect(Collectors.toSet())
@@ -182,9 +186,9 @@ class OpenAPIParser(@Qualifier("R4") private val ctx: FhirContext,
                         if (resftfulIntraction.hasDocumentation()) {
                             operation.description += "\n\n"+ resftfulIntraction.documentation
                         }
-                        if (nextResource.hasExtension("http://hl7.org/fhir/StructureDefinition/capabilitystatement-search-parameter-combination")) {
-                            var comboDoc = "\n\n **Required Parameters** \n\n One of the following search paramter combinations is **required** \n\n" +
-                                    "| Required | Optional | \n"
+                        if (addFHIRBoilerPlater && nextResource.hasExtension("http://hl7.org/fhir/StructureDefinition/capabilitystatement-search-parameter-combination")) {
+                            var comboDoc = "\n\n **Search Parameter Combinations** \n\n The following search parameters combinations should be supported. \n\n" +
+                                    "| SHALL | SHOULD | \n"
                             comboDoc += "|----------|---------| \n"
 
                             for (extension in nextResource.getExtensionsByUrl("http://hl7.org/fhir/StructureDefinition/capabilitystatement-search-parameter-combination")) {
@@ -206,7 +210,7 @@ class OpenAPIParser(@Qualifier("R4") private val ctx: FhirContext,
                             operation.description += comboDoc
                         }
                         addFhirResourceResponse(ctx, openApi, operation, resourceType,resftfulIntraction, null,null)
-                        processSearchParameter(operation,nextResource,resourceType)
+                        processSearchParameter(operation,nextResource,resourceType, addFHIRBoilerPlater)
                         addResourceAPIMParameter(operation)
                     }
                     // Instance Read
@@ -292,7 +296,7 @@ class OpenAPIParser(@Qualifier("R4") private val ctx: FhirContext,
                         if (resftfulIntraction.hasDocumentation()) {
                             operation.description += "\n\n"+resftfulIntraction.documentation
                         }
-                        processSearchParameter(operation,nextResource,resourceType)
+                        processSearchParameter(operation,nextResource,resourceType, addFHIRBoilerPlater)
                         addResourceAPIMParameter(operation)
                         addFhirResourceResponse(ctx, openApi, operation,  resourceType,resftfulIntraction, null,null)
                     }
@@ -311,7 +315,7 @@ class OpenAPIParser(@Qualifier("R4") private val ctx: FhirContext,
                              operation.description += "\n\n"+resftfulIntraction.documentation
                          }
                         addResourceIdParameter(operation)
-                        processSearchParameter(operation,nextResource,resourceType)
+                        processSearchParameter(operation,nextResource,resourceType, addFHIRBoilerPlater)
                         addResourceAPIMParameter(operation)
                         addFhirResourceResponse(ctx, openApi, operation,  resourceType,resftfulIntraction,null,null)
                     }
@@ -347,15 +351,29 @@ class OpenAPIParser(@Qualifier("R4") private val ctx: FhirContext,
     }
 
 
-    private fun processSearchParameter(operation : Operation, nextResource : CapabilityStatement.CapabilityStatementRestResourceComponent,resourceType: String) {
+    private fun processSearchParameter(operation : Operation,
+                                       nextResource : CapabilityStatement.CapabilityStatementRestResourceComponent,
+                                       resourceType: String,
+                                       addFHIRBoilerPlater: Boolean) {
         for (nextSearchParam in nextResource.searchParam) {
             val parametersItem = Parameter()
             operation.addParametersItem(parametersItem)
             parametersItem.name = nextSearchParam.name
             parametersItem.setIn("query")
-            parametersItem.description = nextSearchParam.documentation
-            parametersItem.description += getSearchParameterDocumentation(nextSearchParam,resourceType, parametersItem,true)
-
+            parametersItem.description = ""
+            if (nextSearchParam.hasDocumentation()) parametersItem.description += nextSearchParam.documentation
+            if (addFHIRBoilerPlater) parametersItem.description += getSearchParameterDocumentation(nextSearchParam,resourceType, parametersItem,true)
+            if (nextSearchParam.hasExtension()) {
+                nextSearchParam.extension.forEach {
+                    if (it.hasUrl() && it.url.equals("http://hl7.org/fhir/StructureDefinition/capabilitystatement-expectation")) {
+                        if (it.hasValue() && it.value is CodeType) {
+                            if ((it.value as CodeType).code.equals("SHALL")) {
+                                parametersItem.required = true
+                                }
+                        }
+                    }
+                }
+            }
             // calculate style and explode
             parametersItem.style = Parameter.StyleEnum.FORM
             if (parametersItem.schema != null && parametersItem.schema.format != null) {
