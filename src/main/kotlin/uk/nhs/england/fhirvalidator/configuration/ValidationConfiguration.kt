@@ -10,6 +10,7 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import mu.KLogging
 import org.hl7.fhir.common.hapi.validation.support.*
 import org.hl7.fhir.common.hapi.validation.validator.FhirInstanceValidator
+import org.hl7.fhir.r4.model.CapabilityStatement
 import org.hl7.fhir.r4.model.StructureDefinition
 import org.hl7.fhir.utilities.json.model.JsonProperty
 import org.hl7.fhir.utilities.npm.NpmPackage
@@ -216,7 +217,8 @@ open class ValidationConfiguration(
             val configurationInputStream = ClassPathResource("manifest.json").inputStream
             manifest = objectMapper.readValue(configurationInputStream, Array<SimplifierPackage>::class.java)
         }
-        val packages = arrayListOf<NpmPackage>()
+
+        val packages = HashMap<String, NpmPackage>()
         if (manifest == null) throw UnprocessableEntityException("Error processing IG manifest")
         for (packageNpm in manifest ) {
             val packageName = packageNpm.packageName + "-" + packageNpm.version+ ".tgz"
@@ -229,13 +231,26 @@ open class ValidationConfiguration(
             }
             if (inputStream == null) {
                 val downloadedPackages = downloadPackage(packageNpm.packageName,packageNpm.version)
-                packages.addAll(downloadedPackages)
+                for (downloadpackage in downloadedPackages) {
+                    val name = downloadpackage.name()+'#'+downloadpackage.version()
+                    if (packages.get(name) == null) {
+                        packages.put(name,downloadpackage)
+                    } else {
+                        logger.info("package "+name + " already present")
+                    }
+                }
             } else {
                 logger.info("Using local cache for {} - {}",packageNpm.packageName, packageNpm.version)
-                packages.add(NpmPackage.fromPackage(inputStream))
+                val downloadpackage = NpmPackage.fromPackage(inputStream)
+                val name = downloadpackage.name()+'#'+downloadpackage.version()
+                if (packages.get(name) == null) {
+                    packages.put(name,downloadpackage)
+                } else {
+                    logger.info("package "+name + " already present")
+                }
             }
         }
-        this.npmPackages = packages
+        this.npmPackages = packages.values.toList()
         /*
         if (fhirServerProperties.ig != null && !fhirServerProperties.ig!!.isEmpty()) {
             return downloadPackage(fhirServerProperties.ig!!)

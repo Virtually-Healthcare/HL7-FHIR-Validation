@@ -10,7 +10,6 @@ import org.hl7.fhir.common.hapi.validation.support.ValidationSupportChain
 import org.hl7.fhir.instance.model.api.IBaseResource
 import org.hl7.fhir.r4.model.BooleanType
 import org.hl7.fhir.r4.model.CapabilityStatement
-
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.stereotype.Component
 import uk.nhs.england.fhirvalidator.service.ImplementationGuideParser
@@ -18,6 +17,7 @@ import uk.nhs.england.fhirvalidator.service.oas.CapabilityStatementToOpenAPIConv
 import java.nio.charset.StandardCharsets
 import javax.servlet.http.HttpServletRequest
 import javax.servlet.http.HttpServletResponse
+
 
 @Component
 class CapabilityStatementProvider(@Qualifier("R4") private val fhirContext: FhirContext,
@@ -36,12 +36,23 @@ class CapabilityStatementProvider(@Qualifier("R4") private val fhirContext: Fhir
 
 
     @Search
-    fun search(@RequiredParam(name = CapabilityStatement.SP_URL) url: TokenParam): List<CapabilityStatement> {
-        val list = mutableListOf<CapabilityStatement>()
-        var decodeUri = java.net.URLDecoder.decode(url.value, StandardCharsets.UTF_8.name());
-        val resource = supportChain.fetchResource(CapabilityStatement::class.java,decodeUri)
-        if (resource != null) list.add(resource)
-        return list
+    fun search(@OptionalParam(name = CapabilityStatement.SP_URL) url: TokenParam?): List<CapabilityStatement> {
+        val list = HashMap<String, CapabilityStatement>()
+        if (url !== null) {
+            val decodeUri = java.net.URLDecoder.decode(url.value, StandardCharsets.UTF_8.name())
+            val resource = supportChain.fetchResource(CapabilityStatement::class.java,decodeUri)
+            if (resource != null) list.put(resource.url, resource)
+            return list.values.toList()
+        };
+        for (resource in supportChain.fetchAllConformanceResources()!!) {
+            if (resource is CapabilityStatement) {
+                val cs = resource as CapabilityStatement
+                if (list.get(cs.url) === null) {
+                    list.put(resource.url,resource)
+                }
+            }
+        }
+        return list.values.toList()
     }
 
     @Operation(name = "openapi", idempotent = true,manualResponse=true, manualRequest=true)
