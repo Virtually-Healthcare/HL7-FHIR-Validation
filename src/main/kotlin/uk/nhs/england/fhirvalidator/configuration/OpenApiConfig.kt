@@ -767,7 +767,7 @@ open class OpenApiConfig(@Qualifier("R4") val ctx : FhirContext,
                     .addTagsItem(UTILITY)
                     .summary("Converts a FHIR CapabilityStatement to openapi v3 format")
                     .addParametersItem(Parameter()
-                        .name("addFHIRExtras")
+                        .name("enhance")
                         .`in`("query")
                         .required(false)
                         .style(Parameter.StyleEnum.SIMPLE)

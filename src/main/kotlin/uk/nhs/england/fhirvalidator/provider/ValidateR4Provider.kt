@@ -17,9 +17,10 @@ import org.hl7.fhir.r4.model.OperationOutcome.OperationOutcomeIssueComponent
 import org.hl7.fhir.r4.utils.FHIRPathEngine
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.stereotype.Component
-import uk.nhs.england.fhirvalidator.service.CapabilityStatementApplier
-import uk.nhs.england.fhirvalidator.service.FHIRDocumentApplier
-import uk.nhs.england.fhirvalidator.service.MessageDefinitionApplier
+import uk.nhs.england.fhirvalidator.interceptor.CapabilityStatementApplier
+import uk.nhs.england.fhirvalidator.service.interactions.FHIRDocument
+import uk.nhs.england.fhirvalidator.service.interactions.FHIRMessage
+import uk.nhs.england.fhirvalidator.service.interactions.FHIRRESTful
 import uk.nhs.england.fhirvalidator.util.createOperationOutcome
 import java.net.URLDecoder
 import java.nio.charset.StandardCharsets
@@ -30,9 +31,10 @@ class ValidateR4Provider (
     @Qualifier("R4") private val fhirContext: FhirContext,
     @Qualifier("SupportChain") private val supportChain: IValidationSupport,
     private val validator: FhirValidator,
-    private val messageDefinitionApplier: MessageDefinitionApplier,
+    private val fhirMessage: FHIRMessage,
     private val capabilityStatementApplier: CapabilityStatementApplier,
-    private val fhirDocumentApplier: FHIRDocumentApplier
+    private val fhirDocumentApplier: FHIRDocument,
+    private val fhirRESTful: FHIRRESTful
 
 ) {
     companion object : KLogging()
@@ -130,6 +132,13 @@ class ValidateR4Provider (
                             // This is probably ontology server issue so degrade warning to information
                             issue.severity = OperationOutcome.IssueSeverity.INFORMATION
                         }
+
+                    }
+                    if (issue.diagnostics.contains("http://unstats.un.org/unsd/")) {
+                        issue.severity = OperationOutcome.IssueSeverity.INFORMATION
+                    }
+                    if (issue.diagnostics.contains("note that the validator cannot judge what is suitable")) {
+                        issue.severity = OperationOutcome.IssueSeverity.INFORMATION
                     }
                 }
             } else {
@@ -180,6 +189,14 @@ class ValidateR4Provider (
             }
         }
         var result : OperationOutcome? = null
+        if (resource is CapabilityStatement) {
+            val errors = fhirRESTful.test(resource)
+            if (errors != null) {
+                errors.forEach {
+                    additionalIssues.add(it)
+                }
+            }
+        }
         if (profile != null) {
             if (importProfile !== null && importProfile) capabilityStatementApplier.applyCapabilityStatementProfiles(resource, importProfile)
             if (importProfile !== null && importProfile && resource is Bundle) fhirDocumentApplier.applyDocumentDefinition(resource)
@@ -187,7 +204,7 @@ class ValidateR4Provider (
                 .toOperationOutcome() as? OperationOutcome
         } else {
             capabilityStatementApplier.applyCapabilityStatementProfiles(resource, importProfile)
-            val messageDefinitionErrors = messageDefinitionApplier.applyMessageDefinition(resource)
+            val messageDefinitionErrors = fhirMessage.applyMessageDefinition(resource)
             if (messageDefinitionErrors != null) {
                 messageDefinitionErrors.issue.forEach{
                     additionalIssues.add(it)

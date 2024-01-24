@@ -12,7 +12,7 @@ import org.hl7.fhir.r4.model.CapabilityStatement
 import org.hl7.fhir.r4.model.OperationOutcome
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.stereotype.Component
-import uk.nhs.england.fhirvalidator.service.OASSupport
+import uk.nhs.england.fhirvalidator.service.oas.OpenAPItoCapabilityStatementConversion
 import uk.nhs.england.fhirvalidator.util.createOperationOutcome
 import javax.servlet.http.HttpServletRequest
 import javax.servlet.http.HttpServletResponse
@@ -21,7 +21,7 @@ import javax.servlet.http.HttpServletResponse
 @Component
 class OpenAPIProvider(@Qualifier("R4") private val fhirContext: FhirContext,
 
-                      private val OASSupport: OASSupport
+                      private val openAPItoCapabilityStatementConversion: OpenAPItoCapabilityStatementConversion
 ) {
 
     @Operation(name = "convertOAS", idempotent = true,manualResponse=true, manualRequest=true)
@@ -45,7 +45,7 @@ class OpenAPIProvider(@Qualifier("R4") private val fhirContext: FhirContext,
         var input = IOUtils.toString(servletRequest.getReader());
         var openAPI : OpenAPI? = null
         openAPI = OpenAPIV3Parser().readContents(input).openAPI
-        var capabilityStatement = OASSupport.convert(openAPI)
+        var capabilityStatement = openAPItoCapabilityStatementConversion.convert(openAPI)
         return capabilityStatement
     }
 
@@ -90,7 +90,7 @@ class OpenAPIProvider(@Qualifier("R4") private val fhirContext: FhirContext,
 
 
         if (openAPI !=null) {
-            val results = OASSupport.validate(openAPI)
+            val results = openAPItoCapabilityStatementConversion.validate(openAPI)
             var outcome = createOperationOutcome(results)
             if (oasResult !== null && oasResult.getMessages() != null) {
                 oasResult.getMessages().forEach({

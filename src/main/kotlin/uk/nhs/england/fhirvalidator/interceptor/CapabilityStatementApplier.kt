@@ -1,4 +1,4 @@
-package uk.nhs.england.fhirvalidator.service
+package uk.nhs.england.fhirvalidator.interceptor
 
 import org.hl7.fhir.common.hapi.validation.support.ValidationSupportChain
 import uk.nhs.england.fhirvalidator.util.applyProfile

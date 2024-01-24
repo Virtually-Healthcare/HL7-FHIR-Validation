@@ -1,4 +1,4 @@
-package uk.nhs.england.fhirvalidator.service
+package uk.nhs.england.fhirvalidator.service.interactions
 
 import uk.nhs.england.fhirvalidator.util.applyProfile
 import uk.nhs.england.fhirvalidator.util.createOperationOutcome
@@ -8,9 +8,10 @@ import org.hl7.fhir.common.hapi.validation.support.ValidationSupportChain
 import org.hl7.fhir.instance.model.api.IBaseResource
 import org.hl7.fhir.r4.model.*
 import org.springframework.stereotype.Service
+import uk.nhs.england.fhirvalidator.service.ImplementationGuideParser
 
 @Service
-class MessageDefinitionApplier(
+class FHIRMessage(
     implementationGuideParser: ImplementationGuideParser,
     supportChain: ValidationSupportChain
 ) {

@@ -3,13 +3,13 @@ package uk.nhs.england.fhirvalidator.controller
 import ca.uhn.fhir.context.FhirContext
 import ca.uhn.fhir.context.support.IValidationSupport
 import ca.uhn.fhir.validation.FhirValidator
-import uk.nhs.england.fhirvalidator.service.CapabilityStatementApplier
-import uk.nhs.england.fhirvalidator.service.MessageDefinitionApplier
+import uk.nhs.england.fhirvalidator.interceptor.CapabilityStatementApplier
+import uk.nhs.england.fhirvalidator.service.interactions.FHIRMessage
 import org.hl7.fhir.r4.model.Bundle
 import org.junit.jupiter.api.extension.ExtendWith
 import org.mockito.Mock
 import org.mockito.junit.jupiter.MockitoExtension
-import uk.nhs.england.fhirvalidator.service.OASSupport
+import uk.nhs.england.fhirvalidator.service.oas.OpenAPItoCapabilityStatementConversion
 
 @ExtendWith(MockitoExtension::class)
 internal class ValidateControllerTest {
@@ -20,7 +20,7 @@ internal class ValidateControllerTest {
     lateinit var mockValidator: FhirValidator
 
     @Mock
-    lateinit var mockMessageDefinitionApplier: MessageDefinitionApplier
+    lateinit var mockFHIRMessage: FHIRMessage
 
     @Mock
     lateinit var mockCapabilityStatementApplier: CapabilityStatementApplier
@@ -32,7 +32,7 @@ internal class ValidateControllerTest {
     lateinit var mockSearchParameters : Bundle
 
     @Mock
-    lateinit var OASSupport: OASSupport
+    lateinit var OpenAPItoCapabilityStatementConversion: OpenAPItoCapabilityStatementConversion
 
  /*
     @Test

@@ -6,14 +6,12 @@ import ca.uhn.fhir.context.support.ValidationSupportContext
 import ca.uhn.fhir.model.api.IElement
 import ca.uhn.fhir.rest.annotation.Operation
 import ca.uhn.fhir.rest.annotation.ResourceParam
-import ca.uhn.fhir.rest.server.exceptions.UnprocessableEntityException
 import org.hl7.fhir.common.hapi.validation.support.ValidationSupportChain
 import org.hl7.fhir.instance.model.api.IBaseResource
 import org.hl7.fhir.r4.model.*
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.stereotype.Component
 import uk.nhs.england.fhirvalidator.service.CodingSupport
-import uk.nhs.england.fhirvalidator.service.OpenAPIParser
 import java.net.URI
 import java.nio.charset.StandardCharsets
 import java.text.SimpleDateFormat

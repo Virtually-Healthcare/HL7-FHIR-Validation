@@ -1,4 +1,4 @@
-package uk.nhs.england.fhirvalidator.service
+package uk.nhs.england.fhirvalidator.service.interactions
 
 import org.hl7.fhir.instance.model.api.IBaseResource
 import org.hl7.fhir.r4.model.*
@@ -8,7 +8,7 @@ import uk.nhs.england.fhirvalidator.util.createOperationOutcome
 
 
 @Service
-class FHIRDocumentApplier {
+class FHIRDocument {
 
     fun applyDocumentDefinition(resource: IBaseResource): OperationOutcome? {
         if (resource !is Bundle || resource.type != Bundle.BundleType.DOCUMENT) {

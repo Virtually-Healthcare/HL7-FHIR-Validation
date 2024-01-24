@@ -6,7 +6,6 @@ import ca.uhn.fhir.rest.param.TokenParam
 import ca.uhn.fhir.rest.server.IResourceProvider
 import io.swagger.util.Yaml
 import io.swagger.v3.core.util.Json
-import org.apache.commons.io.IOUtils
 import org.hl7.fhir.common.hapi.validation.support.ValidationSupportChain
 import org.hl7.fhir.instance.model.api.IBaseResource
 import org.hl7.fhir.r4.model.BooleanType
@@ -15,14 +14,14 @@ import org.hl7.fhir.r4.model.CapabilityStatement
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.stereotype.Component
 import uk.nhs.england.fhirvalidator.service.ImplementationGuideParser
-import uk.nhs.england.fhirvalidator.service.OpenAPIParser
+import uk.nhs.england.fhirvalidator.service.oas.CapabilityStatementToOpenAPIConversion
 import java.nio.charset.StandardCharsets
 import javax.servlet.http.HttpServletRequest
 import javax.servlet.http.HttpServletResponse
 
 @Component
 class CapabilityStatementProvider(@Qualifier("R4") private val fhirContext: FhirContext,
-                                  private val oasParser : OpenAPIParser,
+                                  private val oasParser : CapabilityStatementToOpenAPIConversion,
                                   private val supportChain: ValidationSupportChain)  : IResourceProvider {
     /**
      * The getResourceType method comes from IResourceProvider, and must
@@ -50,7 +49,7 @@ class CapabilityStatementProvider(@Qualifier("R4") private val fhirContext: Fhir
         servletRequest: HttpServletRequest,
         servletResponse: HttpServletResponse,
         @ResourceParam inputResource: IBaseResource,
-        @OperationParam(name = "addFHIRExtras") abstract: BooleanType?,
+        @OperationParam(name = "enhance") abstract: BooleanType?,
     ) {
 
        // var input = IOUtils.toString(servletRequest.getReader());

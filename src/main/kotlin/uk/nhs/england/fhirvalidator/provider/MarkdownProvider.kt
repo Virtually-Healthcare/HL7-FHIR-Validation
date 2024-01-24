@@ -5,14 +5,14 @@ import ca.uhn.fhir.rest.annotation.OperationParam
 import ca.uhn.fhir.rest.param.StringParam
 import mu.KLogging
 import org.springframework.stereotype.Component
-import uk.nhs.england.fhirvalidator.service.OpenAPIParser
+import uk.nhs.england.fhirvalidator.service.oas.CapabilityStatementToOpenAPIConversion
 import java.nio.charset.StandardCharsets
 import javax.servlet.http.HttpServletRequest
 import javax.servlet.http.HttpServletResponse
 
 @Component
 class MarkdownProvider (
-                        private val oasParser : OpenAPIParser
+                        private val oasParser : CapabilityStatementToOpenAPIConversion
 ) {
     companion object : KLogging()
 

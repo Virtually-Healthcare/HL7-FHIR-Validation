@@ -1,4 +1,4 @@
-package uk.nhs.england.fhirvalidator.service
+package uk.nhs.england.fhirvalidator.service.oas
 
 //import io.swagger.models.parameters.QueryParameter
 import ca.uhn.fhir.context.FhirContext
@@ -18,21 +18,23 @@ import mu.KLogging
 import org.apache.commons.text.StringEscapeUtils
 import org.hl7.fhir.instance.model.api.IBaseResource
 import org.hl7.fhir.r4.model.*
-import org.hl7.fhir.r4.model.CapabilityStatement.TypeRestfulInteraction
 import org.hl7.fhir.r4.model.CapabilityStatement.TypeRestfulInteraction.READ
 import org.hl7.fhir.r4.model.CapabilityStatement.TypeRestfulInteraction.SEARCHTYPE
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.stereotype.Service
+import uk.nhs.england.fhirvalidator.service.interactions.FHIRMessage
+import uk.nhs.england.fhirvalidator.interceptor.CapabilityStatementApplier
+import uk.nhs.england.fhirvalidator.service.SearchParameterSupport
 import java.util.*
-import kotlin.math.log
 
 @Service
-class OASSupport(@Qualifier("R4") private val ctx: FhirContext?,
-                 @Qualifier("SupportChain") private val supportChain: IValidationSupport,
-                 private val searchParameterSupport : SearchParameterSupport,
-                 private val fhirValidator: FhirValidator,
-                 private val messageDefinitionApplier: MessageDefinitionApplier,
-                 private val capabilityStatementApplier: CapabilityStatementApplier)
+class OpenAPItoCapabilityStatementConversion(@Qualifier("R4") private val ctx: FhirContext?,
+                                             @Qualifier("SupportChain") private val supportChain: IValidationSupport,
+                                             private val searchParameterSupport : SearchParameterSupport,
+                                             private val fhirValidator: FhirValidator,
+                                             private val FHIRMessage: FHIRMessage,
+                                             private val capabilityStatementApplier: CapabilityStatementApplier
+)
 {
 
    // var implementationGuideParser: ImplementationGuideParser? = ImplementationGuideParser(ctx!!)
@@ -56,6 +58,11 @@ class OASSupport(@Qualifier("R4") private val ctx: FhirContext?,
             capabilityStatement.description = escapeMarkdown(openAPI.info.description)
         }
         for (apiPaths in openAPI.paths) {
+            // To cope with eRS OAS
+            if (apiPaths.key !== null && (
+                    apiPaths.key.contains("STU3") ||
+                            apiPaths.key.contains("STU2")
+                    )) continue;
             var path = apiPaths.key.removePrefix("/FHIR/R4")
             path = path.removePrefix("/")
             val paths = path.split("/")
@@ -84,7 +91,11 @@ class OASSupport(@Qualifier("R4") private val ctx: FhirContext?,
             }
             if (resource == null) {
                 resource = CapabilityStatement.CapabilityStatementRestResourceComponent().setType(resourceType)
+                if (apiPaths.value !== null && apiPaths.value.description !== null) {
+                    resource!!.documentation = apiPaths.value.description
+                }
                 rest.addResource(resource)
+
             }
             var operation = ""
             if (paths.size > 1) operation = paths[1]
@@ -132,6 +143,27 @@ class OASSupport(@Qualifier("R4") private val ctx: FhirContext?,
                             }
                             else ->{
                                 logger.info(searchParam.name + " type= " + apiParameter.schema.type )
+                                searchParam.type = Enumerations.SearchParamType.STRING
+                            }
+                        }
+                        when (apiParameter.schema.format) {
+                            "string" -> {
+                                searchParam.type = Enumerations.SearchParamType.STRING
+                            }
+                            "token" -> {
+                                searchParam.type = Enumerations.SearchParamType.TOKEN
+                            }
+                            "date" -> {
+                                searchParam.type = Enumerations.SearchParamType.DATE
+                            }
+                            "number" -> {
+                                searchParam.type = Enumerations.SearchParamType.NUMBER
+                            }
+                            "reference" -> {
+                                searchParam.type = Enumerations.SearchParamType.REFERENCE
+                            }
+                            else ->{
+                                logger.info(searchParam.name + " format= " + apiParameter.schema.format)
                                 searchParam.type = Enumerations.SearchParamType.STRING
                             }
                         }
@@ -496,7 +528,7 @@ class OASSupport(@Qualifier("R4") private val ctx: FhirContext?,
     fun validateResource(resource: IBaseResource, profile: String?): OperationOutcome? {
         if (profile != null) return fhirValidator.validateWithResult(resource, ValidationOptions().addProfile(profile)).toOperationOutcome() as? OperationOutcome
         capabilityStatementApplier.applyCapabilityStatementProfiles(resource, false)
-        val messageDefinitionErrors = messageDefinitionApplier.applyMessageDefinition(resource)
+        val messageDefinitionErrors = FHIRMessage.applyMessageDefinition(resource)
         if (messageDefinitionErrors != null) {
             return messageDefinitionErrors
         }
