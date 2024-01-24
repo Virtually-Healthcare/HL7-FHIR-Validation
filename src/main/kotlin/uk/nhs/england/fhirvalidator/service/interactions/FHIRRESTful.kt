@@ -57,12 +57,21 @@ class FHIRRESTful(
 
             }
             else {
-                if (!searchParameter.type.equals(apiParameter.type)) {
+                if (searchParameter.hasType() && apiParameter.hasType() && !searchParameter.type.equals(apiParameter.type)) {
                     val issue = addOperationIssue(
                         outcomes,
                         OperationOutcome.IssueType.CODEINVALID,
                         OperationOutcome.IssueSeverity.INFORMATION,
-                        "Parameter type for **" + resourceType + '.'+ apiParameter.name + "** should be `" + searchParameter.type.toCode() + "`, is  `" + apiParameter.type.toCode()+"`"
+                        "Parameter type for **" + resourceType + '.'+ apiParameter.name + "** should be `" + searchParameter.type.toCode() + "` but is  `" + apiParameter.type.toCode()+"`."
+                    )
+                    issue.location.add(StringType(locaton))
+                }
+                if (searchParameter.hasType() && !apiParameter.hasType() && !searchParameter.type.equals(apiParameter.type)) {
+                    val issue = addOperationIssue(
+                        outcomes,
+                        OperationOutcome.IssueType.CODEINVALID,
+                        OperationOutcome.IssueSeverity.INFORMATION,
+                        "Parameter type for **" + resourceType + '.'+ apiParameter.name + "** should be `" + searchParameter.type.toCode() + "` but is not present."
                     )
                     issue.location.add(StringType(locaton))
                 }
