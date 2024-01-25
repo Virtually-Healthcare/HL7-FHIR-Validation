@@ -1919,14 +1919,17 @@ class CapabilityStatementToOpenAPIConversion(@Qualifier("R4") private val ctx: F
             if (element.binding.hasValueSet())
             {
                 val valueSet = supportChain.fetchValueSet(element.binding.valueSet)
-                var description = "["+(valueSet as ValueSet).name + "](" + getDocumentationPath(element.binding.valueSet) +")"
-                if (element.binding.hasStrength()) description += " (" + element.binding.strength.display + ")"
-                if (element.binding.hasDescription()) {
-                    var elementDescription = element.binding.description
-                    elementDescription = " <br/>" + elementDescription.replace("\\n","\n")
-                    description += elementDescription + " "
+                if (valueSet !== null) {
+                    var description =
+                        "[" + (valueSet as ValueSet).name + "](" + getDocumentationPath(element.binding.valueSet) + ")"
+                    if (element.binding.hasStrength()) description += " (" + element.binding.strength.display + ")"
+                    if (element.binding.hasDescription()) {
+                        var elementDescription = element.binding.description
+                        elementDescription = " <br/>" + elementDescription.replace("\\n", "\n")
+                        description += elementDescription + " "
+                    }
+                    table += "\n|[Terminology Binding](https://www.hl7.org/fhir/terminologies.html)|" + description + "|"
                 }
-                table += "\n|[Terminology Binding](https://www.hl7.org/fhir/terminologies.html)|"+description+"|"
             }
         }
 
