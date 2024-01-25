@@ -59,6 +59,7 @@ class ValidationInterceptor(val ctx : FhirContext, val messageProperties: Messag
                                             issue.severity.equals(OperationOutcome.IssueSeverity.FATAL)
                                         )) {
                                 log.debug(issue.diagnostics)
+                                if (issue.diagnostics.contains("Validation failed for")) continue
                                 fail(validationResult)
                             }
                         }

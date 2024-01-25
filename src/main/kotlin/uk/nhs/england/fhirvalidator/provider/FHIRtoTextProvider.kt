@@ -21,6 +21,10 @@ import kotlin.reflect.KClass
 import kotlin.reflect.full.memberProperties
 import kotlin.reflect.jvm.isAccessible
 
+/*
+
+DO NOT USE
+ */
 
 @Component
 class FHIRtoTextProvider(@Qualifier("R4") private val fhirContext: FhirContext,
