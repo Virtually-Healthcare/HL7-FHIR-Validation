@@ -62,7 +62,7 @@ class FHIRRESTful(
             )
             issue.location.add(StringType(locaton))
         } else {
-            if (searchParameter.name.startsWith("_include")) {
+            if (searchParameter.hasName() && searchParameter.name.startsWith("_include")) {
 
             }
             else {

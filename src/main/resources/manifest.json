@@ -1,9 +1,5 @@
 [
   {
-    "packageName": "fhir.r4.ukcore.stu3.currentbuild",
-    "version": "0.0.8-pre-release"
-  },
-  {
     "packageName": "fhir.r4.nhsengland.stu1",
     "version": "1.1.0"
   },
