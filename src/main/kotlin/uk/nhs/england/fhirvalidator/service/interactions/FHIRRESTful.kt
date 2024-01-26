@@ -43,6 +43,15 @@ class FHIRRESTful(
         apiParameter: CapabilityStatement.CapabilityStatementRestResourceSearchParamComponent,
         outcomes: MutableList<OperationOutcome.OperationOutcomeIssueComponent>
     ) {
+        if (apiParameter.name == null) {
+            val issue = addOperationIssue(
+                outcomes,
+                OperationOutcome.IssueType.CODEINVALID,
+                OperationOutcome.IssueSeverity.WARNING,
+                "Name must not be null for resource type = "+resourceType
+            )
+            issue.location.add(StringType(locaton))
+        }
         val searchParameter = getSearchParameter(outcomes, resourceType,apiParameter.name)
         if (searchParameter == null) {
             val issue = addOperationIssue(
