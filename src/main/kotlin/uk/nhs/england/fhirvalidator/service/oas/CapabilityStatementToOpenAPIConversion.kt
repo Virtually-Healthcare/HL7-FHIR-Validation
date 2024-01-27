@@ -514,6 +514,7 @@ class CapabilityStatementToOpenAPIConversion(@Qualifier("R4") private val ctx: F
 
 
     fun getProfile(profile: String?) : StructureDefinition? {
+        if (profile == null) return null
         val structureDefinition = supportChain.fetchStructureDefinition(profile)
         if (structureDefinition is StructureDefinition) return structureDefinition
         return null
@@ -1706,12 +1707,13 @@ class CapabilityStatementToOpenAPIConversion(@Qualifier("R4") private val ctx: F
         if (parameters.size>1) {
             description += "\n\n Chained search parameter. Please see [chained](http://www.hl7.org/fhir/search.html#chaining)"
         }
-        if (first) description += "\n\n | Name | Type |  Expression | \n |--------|--------|--------| \n "
+        if (first) description += "\n\n | Name | OAS format / FHIR Type |  \n |--------|--------| \n "
         if (searchParameter != null) {
-            description += "| $name | [" + type?.lowercase() + " ](https://www.hl7.org/fhir/search.html#" + type?.lowercase() + ")|  $expression | \n"
+            description += "| [$name](https://www.hl7.org/fhir/R4/$originalResourceType.html#search) | [" + type?.lowercase() + " ](https://www.hl7.org/fhir/search.html#" + type?.lowercase() + ")|   \n"
         } else {
             description += "\n\n Caution: This does not appear to be a valid search parameter. **Please check HL7 FHIR conformance.**"
         }
+
 
         if (parameters.size>1) {
             if (searchParameter?.type != Enumerations.SearchParamType.REFERENCE) {
