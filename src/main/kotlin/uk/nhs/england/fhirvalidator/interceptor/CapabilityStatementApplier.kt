@@ -25,6 +25,16 @@ class CapabilityStatementApplier(
         restResources?.forEach { applyRestResource(resource, it, importProfile) }
     }
 
+    fun getProfile(resourceType: String): String? {
+        var profile: String? = null
+        restResources?.forEach {
+            if (it.type !== null && it.type.equals(resourceType) && it.hasProfile()) {
+                profile = it.profile
+            }
+
+        }
+        return profile
+    }
     private fun applyRestResource(
         resource: IBaseResource,
         restResource: CapabilityStatement.CapabilityStatementRestResourceComponent,

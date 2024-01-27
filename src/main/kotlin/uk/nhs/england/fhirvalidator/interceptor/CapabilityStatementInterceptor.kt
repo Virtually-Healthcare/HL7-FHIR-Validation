@@ -12,13 +12,14 @@ import org.hl7.fhir.r4.model.*
 import org.hl7.fhir.utilities.npm.NpmPackage
 import org.springframework.core.io.ClassPathResource
 import uk.nhs.england.fhirvalidator.configuration.FHIRServerProperties
+import uk.nhs.england.fhirvalidator.model.FHIRPackage
 import uk.nhs.england.fhirvalidator.model.SimplifierPackage
 import uk.nhs.england.fhirvalidator.service.ImplementationGuideParser
 
 @Interceptor
 class CapabilityStatementInterceptor(
     fhirContext: FhirContext,
-    val objectMapper: ObjectMapper,
+    private val fhirPackage: List<FHIRPackage>,
     private val supportChain: IValidationSupport,
     private val fhirServerProperties: FHIRServerProperties
 ) {
@@ -34,32 +35,47 @@ class CapabilityStatementInterceptor(
         // Customize the CapabilityStatement as desired
         val apiextension = Extension();
         apiextension.url = "https://fhir.nhs.uk/StructureDefinition/Extension-NHSDigital-CapabilityStatement-Package"
-        var manifest : Array<SimplifierPackage>? = null
-        if (fhirServerProperties.ig != null   ) {
-            manifest = arrayOf(SimplifierPackage(fhirServerProperties.ig!!.name, fhirServerProperties.ig!!.version))
-        } else {
-            val configurationInputStream = ClassPathResource("manifest.json").inputStream
-            manifest = objectMapper.readValue(configurationInputStream, Array<SimplifierPackage>::class.java)
-        }
-        if (manifest != null) {
+        /*
+         if (enhance && fhirPackage !== null && fhirPackage.size > 0) {
+             var igDescription = "\n\n | FHIR Implementation Guide | Version |\n |-----|-----|\n"
 
-            manifest.forEach {
-                val packageExtension = Extension();
-                packageExtension.url="FHIRPackage"
-                packageExtension.extension.add(Extension().setUrl("name").setValue(StringType(it.packageName)))
-                packageExtension.extension.add(Extension().setUrl("version").setValue(StringType(it.version)))
-                apiextension.extension.add(packageExtension)
-                var implementationGuide = ImplementationGuide()
-                implementationGuide.packageId = it.packageName
-                implementationGuide.version = it.version
-                implementationGuide.status = Enumerations.PublicationStatus.UNKNOWN
-                implementationGuide.name = it.packageName
-                implementationGuide.url = "https://example.fhir.org/ImplementationGuide/"+it.packageName + "|" + it.version
-                implementationGuide.id = it.packageName
-                cs.implementationGuide.add(CanonicalType("#" + it.packageName))
-                cs.contained.add(implementationGuide)
+             fhirPackage.forEach {
+                 if (!it.derived) {
+                     val name = it.url
+                     val version = it.version
+                     val pckg = it.name
+                     val url = getDocumentationPath(it.url)
+                     if (name == null) igDescription += " ||$pckg#$version|\n"
+                     else igDescription += " |[$name]($url)|$pckg#$version|\n"
+                 }
+             }
+             openApi.info.description += "\n\n" + igDescription
+         }
+
+          */
+
+
+            fhirPackage.forEach {
+                if (!it.derived) {
+                   /* 27 Jan 2024 Use contained instead
+                    val packageExtension = Extension();
+                    packageExtension.url = "FHIRPackage"
+                    packageExtension.extension.add(Extension().setUrl("name").setValue(StringType(it.name)))
+                    packageExtension.extension.add(Extension().setUrl("version").setValue(StringType(it.version)))
+                    apiextension.extension.add(packageExtension) */
+                    var implementationGuide = ImplementationGuide()
+                    implementationGuide.packageId = it.name
+                    implementationGuide.version = it.version
+                    implementationGuide.status = Enumerations.PublicationStatus.UNKNOWN
+                    implementationGuide.name = it.name
+                    implementationGuide.url =
+                        "https://example.fhir.org/ImplementationGuide/" + it.name + "|" + it.version
+                    implementationGuide.id = it.name
+                    cs.implementationGuide.add(CanonicalType("#" + it.name))
+                    cs.contained.add(implementationGuide)
+                }
             }
-        }
+
         val packageExtension = Extension();
         packageExtension.url="openApi"
         packageExtension.extension.add(Extension().setUrl("documentation").setValue(UriType("https://simplifier.net/guide/NHSDigital/Home")))

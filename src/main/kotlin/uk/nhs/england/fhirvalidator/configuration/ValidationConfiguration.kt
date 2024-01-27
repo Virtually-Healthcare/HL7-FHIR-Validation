@@ -7,6 +7,7 @@ import ca.uhn.fhir.context.support.ValidationSupportContext
 import ca.uhn.fhir.rest.server.exceptions.UnprocessableEntityException
 import ca.uhn.fhir.validation.FhirValidator
 import com.fasterxml.jackson.databind.ObjectMapper
+import io.swagger.v3.oas.models.examples.Example
 import mu.KLogging
 import org.hl7.fhir.common.hapi.validation.support.*
 import org.hl7.fhir.common.hapi.validation.validator.FhirInstanceValidator
@@ -21,6 +22,7 @@ import org.springframework.context.annotation.Configuration
 import org.springframework.core.io.ClassPathResource
 import org.springframework.security.oauth2.client.OAuth2AuthorizedClientManager
 import uk.nhs.england.fhirvalidator.awsProvider.*
+import uk.nhs.england.fhirvalidator.model.FHIRPackage
 import uk.nhs.england.fhirvalidator.model.SimplifierPackage
 import uk.nhs.england.fhirvalidator.service.ImplementationGuideParser
 import uk.nhs.england.fhirvalidator.util.AccessTokenInterceptor
@@ -35,6 +37,7 @@ import java.time.Duration
 import java.time.Instant
 import java.util.*
 import java.util.function.Predicate
+import kotlin.collections.ArrayList
 
 
 @Configuration
@@ -47,8 +50,13 @@ open class ValidationConfiguration(
 ) {
     companion object : KLogging()
 
-    var npmPackages: List<NpmPackage>? = null
+    var npmPackages: List<NpmPackage> = emptyList()
 
+    var fhirPackage = mutableListOf<FHIRPackage>()
+    @Bean
+    open fun fhirPackages() : List<FHIRPackage> {
+        return this.fhirPackage
+    }
     @Bean
     open fun validator(@Qualifier("R4") fhirContext: FhirContext, instanceValidator: FhirInstanceValidator): FhirValidator {
         return fhirContext.newValidator().registerValidatorModule(instanceValidator)
@@ -82,7 +90,7 @@ open class ValidationConfiguration(
             switchedTerminologyServiceValidationSupport
         )
         if (messageProperties.getAWSValidationSupport()) supportChain.addValidationSupport( AWSValidationSupport(fhirContext, awsQuestionnaire,awsCodeSystem,awsValueSet, awsConceptMap))
-        getPackages()
+        val manifest = getPackages()
         if (npmPackages != null) {
             npmPackages!!
                 .filter { !it.name().equals("hl7.fhir.r4.examples") }
@@ -94,6 +102,18 @@ open class ValidationConfiguration(
             generateSnapshots(supportChain)
             supportChain.fetchCodeSystem("http://snomed.info/sct")
             // packages have been processed so remove them
+            for (pckg in npmPackages) {
+                var description = pckg.description()
+                if (description == null) description = ""
+                var derived = true
+                if (manifest !==null) {
+                    manifest.forEach {
+                        if (it.packageName.equals(pckg.name())) derived = false
+                    }
+                }
+                var newPckg = FHIRPackage(pckg.name(),pckg.version(),description,pckg.url(),derived)
+                this.fhirPackage.add(newPckg)
+            }
             npmPackages = emptyList()
             return supportChain
         } else {
@@ -209,7 +229,7 @@ open class ValidationConfiguration(
     }
 
 
-    open fun getPackages() {
+    open fun getPackages() :Array<SimplifierPackage>? {
         var manifest : Array<SimplifierPackage>? = null
         if (fhirServerProperties.ig != null   ) {
             manifest = arrayOf(SimplifierPackage(fhirServerProperties.ig!!.name, fhirServerProperties.ig!!.version))
@@ -262,6 +282,7 @@ open class ValidationConfiguration(
             .toList()
 
          */
+        return manifest
     }
 
     open fun downloadPackage(name : String, version : String) : List<NpmPackage> {

@@ -15,6 +15,7 @@ import uk.nhs.england.fhirvalidator.configuration.MessageProperties
 import uk.nhs.england.fhirvalidator.interceptor.AWSAuditEventLoggingInterceptor
 import uk.nhs.england.fhirvalidator.interceptor.CapabilityStatementInterceptor
 import uk.nhs.england.fhirvalidator.interceptor.ValidationInterceptor
+import uk.nhs.england.fhirvalidator.model.FHIRPackage
 import uk.nhs.england.fhirvalidator.provider.*
 import java.util.*
 import javax.servlet.annotation.WebServlet
@@ -24,7 +25,7 @@ import javax.servlet.annotation.WebServlet
 class FHIRR4RestfulServer(
     @Qualifier("R4") fhirContext: FhirContext,
     @Autowired(required = false) val sqs : AmazonSQS?,
-    val objectMapper: ObjectMapper,
+    val fhirPackage: List<FHIRPackage>,
     private val validateR4Provider: ValidateR4Provider,
     private val openAPIProvider: OpenAPIProvider,
     private val markdownProvider: MarkdownProvider,
@@ -38,8 +39,6 @@ class FHIRR4RestfulServer(
     private val namingSystemProvider: NamingSystemProvider,
     private val valueSetProvider: ValueSetProvider,
     private val codeSystemProvider: CodeSystemProvider,
-
-    private val npmPackages: List<NpmPackage>,
     @Qualifier("SupportChain") private val supportChain: IValidationSupport,
     val fhirServerProperties: FHIRServerProperties,
     private val messageProperties: MessageProperties
@@ -66,7 +65,7 @@ class FHIRR4RestfulServer(
 
 
 
-        registerInterceptor(CapabilityStatementInterceptor(this.fhirContext, objectMapper, supportChain, fhirServerProperties))
+        registerInterceptor(CapabilityStatementInterceptor(this.fhirContext, fhirPackage, supportChain, fhirServerProperties))
 
 
         val awsAuditEventLoggingInterceptor =
