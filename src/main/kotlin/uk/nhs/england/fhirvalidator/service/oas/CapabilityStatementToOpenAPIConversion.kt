@@ -203,26 +203,41 @@ class CapabilityStatementToOpenAPIConversion(@Qualifier("R4") private val ctx: F
                         if (resftfulIntraction.hasDocumentation()) {
                             operation.description = unescapeMarkdown(resftfulIntraction.documentation)
                         }
+                        if (enhance && resftfulIntraction.hasExtension("http://hl7.org/fhir/StructureDefinition/capabilitystatement-expectation")) {
+                            if (operation.description == null) operation.description = ""
+                            for (required in resftfulIntraction.getExtensionsByUrl("http://hl7.org/fhir/StructureDefinition/capabilitystatement-expectation")) {
+                                operation.description += "\n\n Query Conformance Expectation: **" + (required.value as CodeType).value  + "** be supported."
+                            }
+                        }
                         if (enhance && nextResource.hasExtension("http://hl7.org/fhir/StructureDefinition/capabilitystatement-search-parameter-combination")) {
-                            var comboDoc = "\n\n **Search Parameter Combinations** \n\n The following search parameters combinations should be supported. \n\n" +
-                                    "| SHALL | SHOULD | \n"
+                            var comboDoc = "\n\n **Search Parameter Combination Conformance** \n\n " +
+                                    "| Conformance Expectation | Parameter Combination | \n"
                             comboDoc += "|----------|---------| \n"
 
                             for (extension in nextResource.getExtensionsByUrl("http://hl7.org/fhir/StructureDefinition/capabilitystatement-search-parameter-combination")) {
-                                var requiredDoc = ""
-                                var optionalDoc = ""
+                                var conformance = ""
+                                var combination = ""
+                                if (extension.hasExtension("http://hl7.org/fhir/StructureDefinition/capabilitystatement-expectation")) {
+                                    for (required in extension.getExtensionsByUrl("http://hl7.org/fhir/StructureDefinition/capabilitystatement-expectation")) {
+                                        conformance = "**" + (required.value as CodeType).value  + "**"
+                                    }
+                                }
                                 if (extension.hasExtension("required")) {
                                     for (required in extension.getExtensionsByUrl("required")) {
-                                        if (requiredDoc != "") requiredDoc += "+"
-                                        requiredDoc += (required.value as StringType).value
+                                        if (combination != "") combination += " + "
+                                        val name = (required.value as StringType).value
+                                        combination += "[$name](https://www.hl7.org/fhir/R4/$resourceType.html#search)"
+
                                     }
                                 }
                                 if (extension.hasExtension("optional")) {
                                     for (optional in extension.getExtensionsByUrl("optional")) {
-                                        optionalDoc += (optional.value as StringType).value + "<br/>"
+                                        if (combination != "") combination += " + "
+                                        val name = (optional.value as StringType).value
+                                        combination += "[$name](https://www.hl7.org/fhir/R4/$resourceType.html#search) *optional*"
                                     }
                                 }
-                                comboDoc += "| $requiredDoc| $optionalDoc | \n"
+                                comboDoc += "| $conformance| $combination | \n"
                             }
                             if (operation.description == null) operation.description = ""
                             operation.description += comboDoc
@@ -245,6 +260,12 @@ class CapabilityStatementToOpenAPIConversion(@Qualifier("R4") private val ctx: F
                         if (resftfulIntraction.hasDocumentation()) {
                             operation.description = resftfulIntraction.documentation
                         }
+                        if (enhance && resftfulIntraction.hasExtension("http://hl7.org/fhir/StructureDefinition/capabilitystatement-expectation")) {
+                            if (operation.description == null) operation.description = ""
+                            for (required in resftfulIntraction.getExtensionsByUrl("http://hl7.org/fhir/StructureDefinition/capabilitystatement-expectation")) {
+                                operation.description += "\n\n Query Conformance Expectation: **" + (required.value as CodeType).value  + "** be supported."
+                            }
+                        }
                         addResourceIdParameter(operation)
                         addResourceAPIMParameter(operation)
                         addFhirResourceResponse(ctx, openApi, operation,resourceType,resftfulIntraction,null,null, enhance)
@@ -260,6 +281,12 @@ class CapabilityStatementToOpenAPIConversion(@Qualifier("R4") private val ctx: F
                         }
                        if (resftfulIntraction.hasDocumentation()) {
                             operation.description = resftfulIntraction.documentation
+                        }
+                        if (enhance && resftfulIntraction.hasExtension("http://hl7.org/fhir/StructureDefinition/capabilitystatement-expectation")) {
+                            if (operation.description == null) operation.description = ""
+                            for (required in resftfulIntraction.getExtensionsByUrl("http://hl7.org/fhir/StructureDefinition/capabilitystatement-expectation")) {
+                                operation.description += "\n\n Query Conformance Expectation: **" + (required.value as CodeType).value  + "** be supported."
+                            }
                         }
                         addResourceIdParameter(operation)
                         addResourceAPIMParameter(operation)
@@ -279,6 +306,12 @@ class CapabilityStatementToOpenAPIConversion(@Qualifier("R4") private val ctx: F
                         if (resftfulIntraction.hasDocumentation()) {
                             operation.description = resftfulIntraction.documentation
                         }
+                        if (enhance && resftfulIntraction.hasExtension("http://hl7.org/fhir/StructureDefinition/capabilitystatement-expectation")) {
+                            if (operation.description == null) operation.description = ""
+                            for (required in resftfulIntraction.getExtensionsByUrl("http://hl7.org/fhir/StructureDefinition/capabilitystatement-expectation")) {
+                                operation.description += "\n\n Query Conformance Expectation: **" + (required.value as CodeType).value   + "** be supported."
+                            }
+                        }
                         addResourceAPIMParameter(operation)
                         addFhirResourceRequestBody(openApi, operation, requestExample, resourceType, nextResource.profile, enhance)
                         addFhirResourceResponse(ctx, openApi, operation, "OperationOutcome",resftfulIntraction,null,null, enhance)
@@ -295,6 +328,12 @@ class CapabilityStatementToOpenAPIConversion(@Qualifier("R4") private val ctx: F
                         }
                         if (resftfulIntraction.hasDocumentation()) {
                             operation.description = resftfulIntraction.documentation
+                        }
+                        if (enhance && resftfulIntraction.hasExtension("http://hl7.org/fhir/StructureDefinition/capabilitystatement-expectation")) {
+                            if (operation.description == null) operation.description = ""
+                            for (required in resftfulIntraction.getExtensionsByUrl("http://hl7.org/fhir/StructureDefinition/capabilitystatement-expectation")) {
+                                operation.description += "\n\n Query Conformance Expectation: **" + (required.value as CodeType).value   + "** be supported."
+                            }
                         }
                         addResourceIdParameter(operation)
                         addResourceAPIMParameter(operation)
@@ -316,6 +355,12 @@ class CapabilityStatementToOpenAPIConversion(@Qualifier("R4") private val ctx: F
                         if (resftfulIntraction.hasDocumentation()) {
                             operation.description = resftfulIntraction.documentation
                         }
+                            if (enhance && resftfulIntraction.hasExtension("http://hl7.org/fhir/StructureDefinition/capabilitystatement-expectation")) {
+                                if (operation.description == null) operation.description = ""
+                                for (required in resftfulIntraction.getExtensionsByUrl("http://hl7.org/fhir/StructureDefinition/capabilitystatement-expectation")) {
+                                    operation.description += "\n\n Query Conformance Expectation: **" + (required.value as CodeType).value   + "** be supported."
+                                }
+                            }
                         addResourceIdParameter(operation)
                         addFhirResourceResponse(ctx, openApi, operation, "OperationOutcome",resftfulIntraction,null,null, enhance)
                     }
@@ -331,6 +376,12 @@ class CapabilityStatementToOpenAPIConversion(@Qualifier("R4") private val ctx: F
                         }
                         if (resftfulIntraction.hasDocumentation()) {
                             operation.description = resftfulIntraction.documentation
+                        }
+                        if (enhance && resftfulIntraction.hasExtension("http://hl7.org/fhir/StructureDefinition/capabilitystatement-expectation")) {
+                            if (operation.description == null) operation.description = ""
+                            for (required in resftfulIntraction.getExtensionsByUrl("http://hl7.org/fhir/StructureDefinition/capabilitystatement-expectation")) {
+                                operation.description += "\n\n Query Conformance Expectation: **" + (required.value as CodeType).value   + "** be supported."
+                            }
                         }
                         processSearchParameter(operation,nextResource,resourceType, enhance)
                         addResourceAPIMParameter(operation)
@@ -351,6 +402,12 @@ class CapabilityStatementToOpenAPIConversion(@Qualifier("R4") private val ctx: F
                          }
                         if (resftfulIntraction.hasDocumentation()) {
                              operation.description = resftfulIntraction.documentation
+                         }
+                         if (enhance && resftfulIntraction.hasExtension("http://hl7.org/fhir/StructureDefinition/capabilitystatement-expectation")) {
+                             if (operation.description == null) operation.description = ""
+                             for (required in resftfulIntraction.getExtensionsByUrl("http://hl7.org/fhir/StructureDefinition/capabilitystatement-expectation")) {
+                                 operation.description += "\n\n Query Conformance Expectation: **" + (required.value as CodeType).value  + "** be supported."
+                             }
                          }
                         addResourceIdParameter(operation)
                         processSearchParameter(operation,nextResource,resourceType, enhance)
@@ -404,6 +461,7 @@ class CapabilityStatementToOpenAPIConversion(@Qualifier("R4") private val ctx: F
             parametersItem.description = ""
             if (nextSearchParam.hasDocumentation()) parametersItem.description += nextSearchParam.documentation
             if (addFHIRBoilerPlater) parametersItem.description += getSearchParameterDocumentation(nextSearchParam,resourceType, parametersItem,true)
+            /* required is not present in CapabilityStatement ..... or not found at present
             if (nextSearchParam.hasExtension()) {
                 nextSearchParam.extension.forEach {
                     if (it.hasUrl() && it.url.equals("http://hl7.org/fhir/StructureDefinition/capabilitystatement-expectation")) {
@@ -415,6 +473,8 @@ class CapabilityStatementToOpenAPIConversion(@Qualifier("R4") private val ctx: F
                     }
                 }
             }
+
+             */
             // calculate style and explode
             parametersItem.style = Parameter.StyleEnum.FORM
             if (parametersItem.schema != null && parametersItem.schema.format != null) {
@@ -1679,11 +1739,11 @@ class CapabilityStatementToOpenAPIConversion(@Qualifier("R4") private val ctx: F
                     array.format("token")
                     parameter.schema = array
                    // parameter.schema.type = "string"
-                    parameter.schema.example = "[system]|[code],[code],[system]"
+                  //  parameter.schema.example = "[system]|[code],[code],[system]"
                 }
                 Enumerations.SearchParamType.REFERENCE -> {
                     parameter.schema = StringSchema().format("reference")
-                    parameter.schema.example = "[type]/[id] or [id] or [uri]"
+                  //  parameter.schema.example = "[type]/[id] or [id] or [uri]"
                 }
                 Enumerations.SearchParamType.DATE -> {
                     val array =  ArraySchema()
@@ -1692,11 +1752,11 @@ class CapabilityStatementToOpenAPIConversion(@Qualifier("R4") private val ctx: F
                     array.format("date")
                     parameter.schema = array
                     parameter.description = "See FHIR documentation for more details."
-                    parameter.schema.example = "eq2013-01-14"
+                   // parameter.schema.example = "eq2013-01-14"
                 }
                 Enumerations.SearchParamType.STRING -> {
                     parameter.schema = StringSchema().type("string")
-                    parameter.schema.example = "LS15"
+                  //  parameter.schema.example = "LS15"
                 }
                 else -> {
                     parameter.schema = StringSchema().format(nextSearchParam.type.toCode())
@@ -1707,9 +1767,14 @@ class CapabilityStatementToOpenAPIConversion(@Qualifier("R4") private val ctx: F
         if (parameters.size>1) {
             description += "\n\n Chained search parameter. Please see [chained](http://www.hl7.org/fhir/search.html#chaining)"
         }
-        if (first) description += "\n\n | Name | OAS format / FHIR Type |  \n |--------|--------| \n "
+        if (first) description += "\n\n **Search Parameter Conformance** \n\n | Conformance Expectation | Name | OAS format / FHIR Type |  \n |--------|--------|--------| \n "
+        var conformance = ""
+        val conformanceExt = nextSearchParam.getExtensionByUrl("http://hl7.org/fhir/StructureDefinition/capabilitystatement-expectation")
+        if (conformanceExt !== null && conformanceExt.hasValue()) {
+            conformance = "**" + (conformanceExt.value as CodeType).value + "**"
+        }
         if (searchParameter != null) {
-            description += "| [$name](https://www.hl7.org/fhir/R4/$originalResourceType.html#search) | [" + type?.lowercase() + " ](https://www.hl7.org/fhir/search.html#" + type?.lowercase() + ")|   \n"
+            description += "| $conformance | [$name](https://www.hl7.org/fhir/R4/$originalResourceType.html#search) | [" + type?.lowercase() + " ](https://www.hl7.org/fhir/search.html#" + type?.lowercase() + ")|   \n"
         } else {
             description += "\n\n Caution: This does not appear to be a valid search parameter. **Please check HL7 FHIR conformance.**"
         }
