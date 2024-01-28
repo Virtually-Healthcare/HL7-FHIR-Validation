@@ -1137,14 +1137,27 @@ class CapabilityStatementToOpenAPIConversion(@Qualifier("R4") private val ctx: F
         val response200 = ApiResponse()
         response200.description = "Success"
         if (resftfulIntraction != null) {
-            val exampleResponse = getInteractionResponseExample(resftfulIntraction)
+            var exampleResponse = getInteractionResponseExample(resftfulIntraction)
 
-            response200.content = provideContentFhirResource(
-                theOpenApi,
-                exampleResponse,
-                theResourceType,
-                profile, enhance
-            )
+            if (resftfulIntraction.code.toCode().equals("search-type")) {
+                if (theResourceType !== null) {
+                    exampleResponse = getSearchSetExample(theResourceType)
+                }
+                response200.content = provideContentFhirResource(
+                    theOpenApi,
+                    exampleResponse,
+                    "Bundle",
+                    profile, enhance
+                )
+            } else {
+                response200.content = provideContentFhirResource(
+                    theOpenApi,
+                    exampleResponse,
+                    theResourceType,
+                    profile, enhance
+                )
+            }
+
 
         }
         if (operationComponent != null) {
@@ -1390,6 +1403,33 @@ class CapabilityStatementToOpenAPIConversion(@Qualifier("R4") private val ctx: F
             return getResponseExample(apiExtension,searchSet,createCall)
         }
         return emptyList()
+    }
+
+    fun getSearchSetExample(resourceType : String) : List<Example> {
+        val examples = mutableListOf<Example>()
+        val exampleOAS = Example()
+        examples.add(exampleOAS)
+        val bundle = Bundle()
+        bundle.type = Bundle.BundleType.SEARCHSET
+        bundle.addLink(
+            Bundle.BundleLinkComponent()
+                .setRelation("self")
+                .setUrl(exampleServer + exampleServerPrefix + resourceType + "?parameterExample=123&page=1")
+        )
+        bundle.addLink(
+            Bundle.BundleLinkComponent()
+                .setRelation("next")
+                .setUrl(exampleServer + exampleServerPrefix + resourceType + "?parameterExample=123&page=2")
+        )
+        val example =  ctx?.getResourceDefinition(resourceType)?.newInstance()
+        example?.setId("1234")
+        bundle.entry.add(
+            Bundle.BundleEntryComponent().setResource(example as Resource)
+                .setFullUrl(exampleServer + exampleServerPrefix + resourceType + "/1234")
+        )
+        bundle.total = 1
+        exampleOAS.value = ctx?.newJsonParser()?.encodeResourceToString(bundle)
+        return examples
     }
     private fun getResponseExample(apiExtension : Extension,searchExample : Boolean,createCall : Boolean) : List<Example> {
         val examples = mutableListOf<Example>()
