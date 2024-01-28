@@ -1276,7 +1276,7 @@ class CapabilityStatementToOpenAPIConversion(@Qualifier("R4") private val ctx: F
                                     addResoureTag(openApi, foci.code,foci.profile, enhance, "")
                                 }
                                 val idStr = getProfileName(foci.profile)
-                                supportedDocumentation += "| [$resource](https://www.hl7.org/fhir/$resource.html) | [$idStr]($profile) | $min | $max | \n"
+                                supportedDocumentation += "| [$resource](https://www.hl7.org/fhir/R4/$resource.html) | [$idStr]($profile) | $min | $max | \n"
                             }
                         }
                         // only process this loop once
@@ -1734,7 +1734,8 @@ class CapabilityStatementToOpenAPIConversion(@Qualifier("R4") private val ctx: F
             when (searchParameter.type) {
                 Enumerations.SearchParamType.TOKEN -> {
                     val array =  ArraySchema()
-                    array.items = StringSchema().format("token")
+                    array.items = StringSchema().format("token").description("token format: [system]|[code],[code],[system]")
+
                     // Should really be added to the StringSchema only but this gets around UI issues
                     array.format("token")
                     parameter.schema = array
@@ -1742,20 +1743,25 @@ class CapabilityStatementToOpenAPIConversion(@Qualifier("R4") private val ctx: F
                   //  parameter.schema.example = "[system]|[code],[code],[system]"
                 }
                 Enumerations.SearchParamType.REFERENCE -> {
-                    parameter.schema = StringSchema().format("reference")
+                    parameter.schema = StringSchema().format("reference").description("reference format: [type]/[id] or [id] or [uri]")
                   //  parameter.schema.example = "[type]/[id] or [id] or [uri]"
                 }
                 Enumerations.SearchParamType.DATE -> {
                     val array =  ArraySchema()
-                    array.items = StringSchema().format("date")
+                    array.items = StringSchema().format("date").pattern("([0-9]([0-9]([0-9][1-9]|[1-9]0)|[1-9]00)|[1-9]000)(-(0[1-9]|1[0-2])(-(0[1-9]|[1-2][0-9]|3[0-1])\n" +
+                            ")?)?")
                     // Should really be added to the StringSchema only but this gets around UI issues
                     array.format("date")
                     parameter.schema = array
                     parameter.description = "See FHIR documentation for more details."
                    // parameter.schema.example = "eq2013-01-14"
                 }
+                Enumerations.SearchParamType.NUMBER -> {
+                    parameter.schema = StringSchema().type("number").pattern("[0]|[-+]?[1-9][0-9]*")
+                    //  parameter.schema.example = "LS15"
+                }
                 Enumerations.SearchParamType.STRING -> {
-                    parameter.schema = StringSchema().type("string")
+                    parameter.schema = StringSchema().type("string").pattern("^[\\s\\S]+\$")
                   //  parameter.schema.example = "LS15"
                 }
                 else -> {
@@ -1774,9 +1780,9 @@ class CapabilityStatementToOpenAPIConversion(@Qualifier("R4") private val ctx: F
             conformance = "**" + (conformanceExt.value as CodeType).value + "**"
         }
         if (searchParameter != null) {
-            description += "| $conformance | [$name](https://www.hl7.org/fhir/R4/$originalResourceType.html#search) | [" + type?.lowercase() + " ](https://www.hl7.org/fhir/search.html#" + type?.lowercase() + ")|   \n"
+            description += "| $conformance | [$name](https://www.hl7.org/fhir/R4/$originalResourceType.html#search) | [" + type?.lowercase() + " ](https://www.hl7.org/fhir/R4/search.html#" + type?.lowercase() + ")|   \n"
         } else {
-            description += "\n\n Caution: This does not appear to be a valid search parameter. **Please check HL7 FHIR conformance.**"
+            description += "\n\n **Caution:** This does not appear to be a valid search parameter. Please check HL7 FHIR conformance."
         }
 
 
@@ -1842,7 +1848,8 @@ class CapabilityStatementToOpenAPIConversion(@Qualifier("R4") private val ctx: F
             var schemaList = mutableMapOf<String, Schema<Any>>()
 
             schema.description =
-                "HL7 FHIR Schema [$resourceType](https://hl7.org/fhir/R4/fhir.schema.json#/definitions/$resourceType)." + " HL7 FHIR Documentation [$resourceType](\"https://www.hl7.org/fhir/$resourceType.html\")"
+                "HL7 FHIR Schema [$resourceType](https://hl7.org/fhir/R4/fhir.schema.json#/definitions/$resourceType)." +
+                 " HL7 FHIR Documentation [$resourceType](https://www.hl7.org/fhir/R4/$resourceType.html)"
 
 
             schema.externalDocs = ExternalDocumentation()

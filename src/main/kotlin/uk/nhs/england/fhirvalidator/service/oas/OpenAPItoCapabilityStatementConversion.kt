@@ -69,7 +69,7 @@ class OpenAPItoCapabilityStatementConversion(@Qualifier("R4") private val ctx: F
             var resourceType = paths[0]
             var multiPathParameter : CapabilityStatement.CapabilityStatementRestResourceSearchParamComponent? = null
             for(it in paths) {
-                if (!it.contains("{") && !it.contains("$")) {
+                if (!it.contains("{") && !it.contains("$") && !it.startsWith("_")) {
                     if (it !== resourceType && resourceType.equals("Patient")) {
                         multiPathParameter = CapabilityStatement.CapabilityStatementRestResourceSearchParamComponent()
                         multiPathParameter.name = "patient"
@@ -108,6 +108,9 @@ class OpenAPItoCapabilityStatementConversion(@Qualifier("R4") private val ctx: F
             if (operation.isNotEmpty() && operation.startsWith("$")) {
                 val operationDefinition = getOperationDefinition(operation)
 
+            }
+            if (operation.isNotEmpty() && operation.startsWith("_search")) {
+               // TODO
             }
 
             // check all parameters
