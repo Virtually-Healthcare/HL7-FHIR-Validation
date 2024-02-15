@@ -20,7 +20,14 @@ And repeat configure step?
 
 aws ecr get-login-password --region eu-west-2 | docker login --username AWS --password-stdin 365027538941.dkr.ecr.eu-west-2.amazonaws.com
 
+Think we need to output the angular app to resources static folder
+
+ng build --configuration production --output-path target/classes/ --base-href /interoperability-standards-tools-skunkworks/
+
+
 mvn clean install
+
+
 
 docker build -t fhir-validator-r4 .
 
