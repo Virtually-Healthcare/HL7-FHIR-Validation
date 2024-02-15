@@ -1670,7 +1670,7 @@ class CapabilityStatementToOpenAPIConversion(@Qualifier("R4") private val ctx: F
 /*
     protected fun getIndexTemplate(): ClassLoaderTemplateResource? {
         return ClassLoaderTemplateResource(
-            myResourcePathToClasspath["/swagger-ui/index.html"],
+            myResourcePathToClasspath["/swagger-ui/404.html"],
             StandardCharsets.UTF_8.name()
         )
     }

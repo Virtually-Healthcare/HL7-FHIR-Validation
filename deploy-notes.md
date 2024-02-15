@@ -22,32 +22,35 @@ aws ecr get-login-password --region eu-west-2 | docker login --username AWS --pa
 
 Think we need to output the angular app to resources static folder
 
-ng build --configuration production --output-path target/classes/ --base-href /interoperability-standards-tools-skunkworks/
+ng build --configuration production --output-path ../src/main/resources/public --base-href /
 
 
 mvn clean install
 
+ng build --configuration production --output-path ../src/main/resources/static --base-href ./
 
 
 docker build -t fhir-validator-r4 .
 
 docker tag fhir-validator-r4:latest 365027538941.dkr.ecr.eu-west-2.amazonaws.com/fhir-validator-r4:latest
-docker tag fhir-validator-r4:latest 365027538941.dkr.ecr.eu-west-2.amazonaws.com/fhir-validator-r4:6.10.28
+docker tag fhir-validator-r4:latest 365027538941.dkr.ecr.eu-west-2.amazonaws.com/fhir-validator-r4:6.10.33
 
-docker push 365027538941.dkr.ecr.eu-west-2.amazonaws.com/fhir-validator-r4:6.10.28
+docker push 365027538941.dkr.ecr.eu-west-2.amazonaws.com/fhir-validator-r4:6.10.33
 docker push 365027538941.dkr.ecr.eu-west-2.amazonaws.com/fhir-validator-r4:latest
 
 ## Docker
+
+ng build --configuration docker --output-path ../src/main/resources/static --base-href ./
 
 mvn clean install
 
 docker build -t fhir-validator-r4 .
 
 docker tag fhir-validator-r4:latest thorlogic/fhir-validator-r4:latest
-docker tag fhir-validator-r4:latest thorlogic/fhir-validator-r4:6.10.28
+docker tag fhir-validator-r4:latest thorlogic/fhir-validator-r4:6.10.33
 
 docker push thorlogic/fhir-validator-r4:latest
-docker push thorlogic/fhir-validator-r4:6.10.28
+docker push thorlogic/fhir-validator-r4:6.10.33
 
 ### Cloud Formation Notes
 
