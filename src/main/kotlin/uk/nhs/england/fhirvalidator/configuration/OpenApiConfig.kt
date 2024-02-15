@@ -30,16 +30,18 @@ import uk.nhs.england.fhirvalidator.util.OASExamples
 @Configuration
 open class OpenApiConfig(@Qualifier("R4") val ctx : FhirContext,
                          val objectMapper: ObjectMapper,
-                         val servicesProperties: ServicesProperties) {
+                         val servicesProperties: ServicesProperties,
+                        val fhirServerProperties: FHIRServerProperties,
+            val terminologyValidationProperties: TerminologyValidationProperties
+    ) {
    var VALIDATION = "Validation"
     var UTILITY = "Utility"
-    var EXPANSION = "ValueSet Expansion (inc. Filtering)"
+
     var CONFORMANCE = "FHIR Package Queries"
 
-    val SVCM_98 = "Lookup Code"
     var MEDICATION_DEFINITION = "Experimental - FHIR R4B Medication Definition"
     var EXPERIMENTAL = "Experimental"
-    var TERMINOLOGY = "Terminology"
+    var ONTOLOGY = "Terminology Services"
 
     @Bean
     open fun customOpenAPI(
@@ -84,19 +86,12 @@ open class OpenApiConfig(@Qualifier("R4") val ctx : FhirContext,
             .description("[Validation](https://www.hl7.org/fhir/R4/validation.html)")
         )
 
-        oas.addTagsItem(io.swagger.v3.oas.models.tags.Tag()
-            .name(EXPANSION)
-            .description("[expand](https://www.hl7.org/fhir/R4/operation-valueset-expand.html)")
-        )
-        oas.addTagsItem(io.swagger.v3.oas.models.tags.Tag()
-            .name(SVCM_98)
-            .description("[lookup](https://www.hl7.org/fhir/R4/operation-codesystem-lookup.html)")
-        )
-
-        oas.addTagsItem(
-            io.swagger.v3.oas.models.tags.Tag()
-                .name(TERMINOLOGY)
-        )
+        if (terminologyValidationProperties.url !== null ) {
+            oas.addTagsItem(
+                io.swagger.v3.oas.models.tags.Tag()
+                    .name(ONTOLOGY)
+            )
+        }
 
         val examples = LinkedHashMap<String,Example?>()
         examples.put("Patient PDS",
@@ -224,202 +219,256 @@ open class OpenApiConfig(@Qualifier("R4") val ctx : FhirContext,
         oas.path("/FHIR/R4/MessageDefinition",getPathItem(CONFORMANCE,"MessageDefinition", "Message Definition", "url" , "https://fhir.nhs.uk/MessageDefinition/prescription-order", ""))
 
 
-        // SVCM
+        if (terminologyValidationProperties.url !== null) {
+            // SVCM
 
-        // ITI-95 Query Value Set
-        var pathItem = getPathItem(getTerminologyTagName(TERMINOLOGY),"ValueSet", "Value Set", "url" , "https://fhir.nhs.uk/ValueSet/NHSDigital-MedicationRequest-Code",
-        "This transaction is used by the Terminology Consumer to find value sets based on criteria it\n" +
-                "provides in the query parameters of the request message, or to retrieve a specific value set. The\n" +
-                "request is received by the Terminology Repository. The Terminology Repository processes the\n" +
-                "request and returns a response of the matching value sets.")
-        oas.path("/FHIR/R4/ValueSet",pathItem)
+            // ITI-95 Query Value Set
+            var pathItem = getPathItem(
+                getTerminologyTagName(ONTOLOGY),
+                "ValueSet",
+                "Value Set",
+                "url",
+                "https://fhir.nhs.uk/ValueSet/NHSDigital-MedicationRequest-Code",
+                "This transaction is used by the Terminology Consumer to find value sets based on criteria it\n" +
+                        "provides in the query parameters of the request message, or to retrieve a specific value set. The\n" +
+                        "request is received by the Terminology Repository. The Terminology Repository processes the\n" +
+                        "request and returns a response of the matching value sets."
+            )
+            oas.path("/FHIR/R4/ValueSet", pathItem)
 
-        // ITI 96 Query Code System
+            // ITI 96 Query Code System
 
-        pathItem = getPathItem(getTerminologyTagName(TERMINOLOGY),"CodeSystem", "Code System", "url", "https://fhir.nhs.uk/CodeSystem/NHSD-API-ErrorOrWarningCode",
-        "This transaction is used by the Terminology Consumer to solicit information about code systems " +
-                "whose data match data provided in the query parameters on the request message. The request is " +
-                "received by the Terminology Repository. The Terminology Repository processes the request and " +
-                "returns a response of the matching code systems.")
-        oas.path("/FHIR/R4/CodeSystem",pathItem)
+            pathItem = getPathItem(
+                getTerminologyTagName(ONTOLOGY),
+                "CodeSystem",
+                "Code System",
+                "url",
+                "https://fhir.nhs.uk/CodeSystem/NHSD-API-ErrorOrWarningCode",
+                "This transaction is used by the Terminology Consumer to solicit information about code systems " +
+                        "whose data match data provided in the query parameters on the request message. The request is " +
+                        "received by the Terminology Repository. The Terminology Repository processes the request and " +
+                        "returns a response of the matching code systems."
+            )
+            oas.path("/FHIR/R4/CodeSystem", pathItem)
 
-        // ITI 97 Expand Value Set [
-        oas.path("/FHIR/R4/ValueSet/\$expand",PathItem()
-            .get(
-                Operation()
-                    .addTagsItem(getTerminologyTagName(EXPANSION))
-                    .summary("Expand a Value Set")
-                    .description("This transaction is used by the Terminology Consumer to expand a given ValueSet to return the\n" +
-                            "full list of concepts available in that ValueSet. The request is received by the Terminology\n" +
-                            "Repository. The Terminology Repository processes the request and returns a response of the\n" +
-                            "expanded ValueSet. \n\n" +
-                            "FHIR Definition [expand](https://www.hl7.org/fhir/R4/operation-valueset-expand.html) "
+            // ITI 97 Expand Value Set [
+            oas.path(
+                "/FHIR/R4/ValueSet/\$expand", PathItem()
+                    .get(
+                        Operation()
+                            .addTagsItem(getTerminologyTagName(ONTOLOGY))
+                            .summary("Expand a Value Set")
+                            .description(
+                                "This transaction is used by the Terminology Consumer to expand a given ValueSet to return the\n" +
+                                        "full list of concepts available in that ValueSet. The request is received by the Terminology\n" +
+                                        "Repository. The Terminology Repository processes the request and returns a response of the\n" +
+                                        "expanded ValueSet. \n\n" +
+                                        "FHIR Definition [expand](https://www.hl7.org/fhir/R4/operation-valueset-expand.html) "
+                            )
+                            .responses(getApiResponses())
+                            .addParametersItem(
+                                Parameter()
+                                    .name("url")
+                                    .`in`("query")
+                                    .required(false)
+                                    .style(Parameter.StyleEnum.SIMPLE)
+                                    .description("A canonical reference to a value set. The server must know the value set (e.g. it is defined explicitly in the server's value sets, or it is defined implicitly by some code system known to the server")
+                                    .schema(StringSchema().format("uri"))
+                                    .example("https://fhir.hl7.org.uk/ValueSet/UKCore-MedicationPrecondition")
+                            )
+                            .addParametersItem(
+                                Parameter()
+                                    .name("filter")
+                                    .`in`("query")
+                                    .required(false)
+                                    .style(Parameter.StyleEnum.SIMPLE)
+                                    .description("(EXPERIMENTAL - ValueSet must be in UKCore or NHSDigital IG) A text filter that is applied to restrict the codes that are returned (this is useful in a UI context).")
+                                    .schema(StringSchema())
+                                    .example("Otalgia")
+                            )
                     )
-                    .responses(getApiResponses())
-                    .addParametersItem(Parameter()
-                        .name("url")
-                        .`in`("query")
-                        .required(false)
-                        .style(Parameter.StyleEnum.SIMPLE)
-                        .description("A canonical reference to a value set. The server must know the value set (e.g. it is defined explicitly in the server's value sets, or it is defined implicitly by some code system known to the server")
-                        .schema(StringSchema().format("uri"))
-                        .example("https://fhir.hl7.org.uk/ValueSet/UKCore-MedicationPrecondition"))
-                    .addParametersItem(Parameter()
-                        .name("filter")
-                        .`in`("query")
-                        .required(false)
-                        .style(Parameter.StyleEnum.SIMPLE)
-                        .description("(EXPERIMENTAL - ValueSet must be in UKCore or NHSDigital IG) A text filter that is applied to restrict the codes that are returned (this is useful in a UI context).")
-                        .schema(StringSchema())
-                        .example("Otalgia"))
+                    .post(
+                        Operation()
+                            .addTagsItem(getTerminologyTagName(ONTOLOGY))
+                            .summary("The definition of a value set is used to create a simple collection of codes suitable for use for data entry or validation. Body should be a FHIR ValueSet")
+                            .responses(getApiResponses())
+                            .description("[expand](https://www.hl7.org/fhir/R4/operation-valueset-expand.html)")
+                            .responses(getApiResponsesXMLJSON_JSONDefault())
+                            .requestBody(
+                                RequestBody().content(
+                                    Content()
+                                        .addMediaType(
+                                            "application/fhir+json",
+                                            MediaType().schema(StringSchema()._default("{}"))
+                                        )
+                                        .addMediaType("application/fhir+xml", MediaType().schema(StringSchema()))
+                                )
+                            )
+                    )
             )
-            .post(
-                Operation()
-                    .addTagsItem(getTerminologyTagName(EXPANSION))
-                    .summary("The definition of a value set is used to create a simple collection of codes suitable for use for data entry or validation. Body should be a FHIR ValueSet").responses(getApiResponses())
-                    .description("[expand](https://www.hl7.org/fhir/R4/operation-valueset-expand.html)")
-                    .responses(getApiResponsesXMLJSON_JSONDefault())
-                    .requestBody(RequestBody().content(Content()
-                        .addMediaType("application/fhir+json",MediaType().schema(StringSchema()._default("{}")))
-                        .addMediaType("application/fhir+xml",MediaType().schema(StringSchema()))
-                    ))
-            )
-        )
-        val eclItem = PathItem()
-            .get(
-                Operation()
-                    .addTagsItem(getTerminologyTagName(EXPANSION))
-                    .summary("Expand a SNOMED CT ecl statement.")
-                    .description("This internally uses ValueSet [expand](https://www.hl7.org/fhir/R4/operation-valueset-expand.html) operation.")
-                    .responses(getApiResponses())
-                    .addParametersItem(Parameter()
-                        .name("ecl")
-                        .`in`("query")
-                        .required(true)
-                        .style(Parameter.StyleEnum.SIMPLE)
-                        .description("A text filter that is applied to restrict the codes that are returned (this is useful in a UI context).")
-                        .schema(StringSchema())
-                        .example("< 19829001 |Disorder of lung| AND < 301867009 |Edema of trunk|"))
-                    .addParametersItem(Parameter()
-                        .name("count")
-                        .`in`("query")
-                        .required(false)
-                        .style(Parameter.StyleEnum.SIMPLE)
-                        .description("(EXPERIMENTAL) A text filter that is applied to restrict the codes that are returned (this is useful in a UI context).")
-                        .schema(StringSchema())
-                        .example("10"))
-                    .addParametersItem(Parameter()
-                        .name("filter")
-                        .`in`("query")
-                        .required(false)
-                        .style(Parameter.StyleEnum.SIMPLE)
-                        .description("(EXPERIMENTAL - ValueSet must be in UKCore or NHSDigital IG) A text filter that is applied to restrict the codes that are returned (this is useful in a UI context).")
-                        .schema(StringSchema()))
+            val eclItem = PathItem()
+                .get(
+                    Operation()
+                        .addTagsItem(getTerminologyTagName(ONTOLOGY))
+                        .summary("Expand a SNOMED CT ecl statement.")
+                        .description("This internally uses ValueSet [expand](https://www.hl7.org/fhir/R4/operation-valueset-expand.html) operation.")
+                        .responses(getApiResponses())
+                        .addParametersItem(
+                            Parameter()
+                                .name("ecl")
+                                .`in`("query")
+                                .required(true)
+                                .style(Parameter.StyleEnum.SIMPLE)
+                                .description("A text filter that is applied to restrict the codes that are returned (this is useful in a UI context).")
+                                .schema(StringSchema())
+                                .example("< 19829001 |Disorder of lung| AND < 301867009 |Edema of trunk|")
+                        )
+                        .addParametersItem(
+                            Parameter()
+                                .name("count")
+                                .`in`("query")
+                                .required(false)
+                                .style(Parameter.StyleEnum.SIMPLE)
+                                .description("(EXPERIMENTAL) A text filter that is applied to restrict the codes that are returned (this is useful in a UI context).")
+                                .schema(StringSchema())
+                                .example("10")
+                        )
+                        .addParametersItem(
+                            Parameter()
+                                .name("filter")
+                                .`in`("query")
+                                .required(false)
+                                .style(Parameter.StyleEnum.SIMPLE)
+                                .description("(EXPERIMENTAL - ValueSet must be in UKCore or NHSDigital IG) A text filter that is applied to restrict the codes that are returned (this is useful in a UI context).")
+                                .schema(StringSchema())
+                        )
 
-            )
+                )
 
-        oas.path("/FHIR/R4/ValueSet/\$expandEcl",eclItem)
+            oas.path("/FHIR/R4/ValueSet/\$expandEcl", eclItem)
 
-        val searchItem = PathItem()
-            .get(
-                Operation()
-                    .addTagsItem(getTerminologyTagName(EXPANSION))
-                    .summary("Search SNOMED CT for a term.")
-                    .description("This internally uses ValueSet [expand](https://www.hl7.org/fhir/R4/operation-valueset-expand.html) operation.")
-                    .responses(getApiResponses())
-                    .addParametersItem(Parameter()
-                        .name("filter")
-                        .`in`("query")
-                        .required(true)
-                        .style(Parameter.StyleEnum.SIMPLE)
-                        .description("(EXPERIMENTAL) A text filter that is applied to restrict the codes that are returned (this is useful in a UI context).")
-                        .schema(StringSchema())
-                        .example("Otalgia"))
-                    .addParametersItem(Parameter()
-                        .name("count")
-                        .`in`("query")
-                        .required(false)
-                        .style(Parameter.StyleEnum.SIMPLE)
-                        .description("(EXPERIMENTAL) A text filter that is applied to restrict the codes that are returned (this is useful in a UI context).")
-                        .schema(StringSchema())
-                        .example("10"))
-                    .addParametersItem(Parameter()
-                        .name("includeDesignations")
-                        .`in`("query")
-                        .required(false)
-                        .style(Parameter.StyleEnum.SIMPLE)
-                        .description("(EXPERIMENTAL) A text filter that is applied to restrict the codes that are returned (this is useful in a UI context).")
-                        .schema(BooleanSchema())
-                        .example("true"))
-                    .addParametersItem(Parameter()
-                        .name("property")
-                        .`in`("query")
-                        .required(false)
-                        .style(Parameter.StyleEnum.SIMPLE)
-                        .description("(EXPERIMENTAL) Properties to return.")
-                        .schema(StringSchema())
-                        .example("sufficientlyDefined,inactive,parent"))
+            val searchItem = PathItem()
+                .get(
+                    Operation()
+                        .addTagsItem(getTerminologyTagName(ONTOLOGY))
+                        .summary("Search SNOMED CT for a term.")
+                        .description("This internally uses ValueSet [expand](https://www.hl7.org/fhir/R4/operation-valueset-expand.html) operation.")
+                        .responses(getApiResponses())
+                        .addParametersItem(
+                            Parameter()
+                                .name("filter")
+                                .`in`("query")
+                                .required(true)
+                                .style(Parameter.StyleEnum.SIMPLE)
+                                .description("(EXPERIMENTAL) A text filter that is applied to restrict the codes that are returned (this is useful in a UI context).")
+                                .schema(StringSchema())
+                                .example("Otalgia")
+                        )
+                        .addParametersItem(
+                            Parameter()
+                                .name("count")
+                                .`in`("query")
+                                .required(false)
+                                .style(Parameter.StyleEnum.SIMPLE)
+                                .description("(EXPERIMENTAL) A text filter that is applied to restrict the codes that are returned (this is useful in a UI context).")
+                                .schema(StringSchema())
+                                .example("10")
+                        )
+                        .addParametersItem(
+                            Parameter()
+                                .name("includeDesignations")
+                                .`in`("query")
+                                .required(false)
+                                .style(Parameter.StyleEnum.SIMPLE)
+                                .description("(EXPERIMENTAL) A text filter that is applied to restrict the codes that are returned (this is useful in a UI context).")
+                                .schema(BooleanSchema())
+                                .example("true")
+                        )
+                        .addParametersItem(
+                            Parameter()
+                                .name("property")
+                                .`in`("query")
+                                .required(false)
+                                .style(Parameter.StyleEnum.SIMPLE)
+                                .description("(EXPERIMENTAL) Properties to return.")
+                                .schema(StringSchema())
+                                .example("sufficientlyDefined,inactive,parent")
+                        )
 
-            )
+                )
 
-        oas.path("/FHIR/R4/ValueSet/\$expandSCT",searchItem)
+            oas.path("/FHIR/R4/ValueSet/\$expandSCT", searchItem)
 
-        // Lookup Code [ITI-98]
-        val lookupItem = PathItem()
-            .get(
-                Operation()
-                    .addTagsItem(getTerminologyTagName(SVCM_98))
-                    .summary("Lookup a Code in a Value Set")
-                    .description("This transaction is used by the Terminology Consumer to lookup a given code to return the full " +
-                            "details. The request is received by the Terminology Repository. The Terminology Repository " +
-                            "processes the request and returns a response of the code details as a Parameters Resource." +
-                            "\n\nFHIR Definition [lookup](https://www.hl7.org/fhir/R4/operation-codesystem-lookup.html)")
-                    .responses(getApiResponses())
-                    .addParametersItem(Parameter()
-                        .name("code")
-                        .`in`("query")
-                        .required(false)
-                        .style(Parameter.StyleEnum.SIMPLE)
-                        .description("The code that is to be located. If a code is provided, a system must be provided")
-                        .schema(StringSchema().format("code"))
-                        .example("15517911000001104"))
-                    .addParametersItem(Parameter()
-                        .name("system")
-                        .`in`("query")
-                        .required(false)
-                        .style(Parameter.StyleEnum.SIMPLE)
-                        .description("The system for the code that is to be located")
-                        .schema(StringSchema().format("url"))
-                        .example("http://snomed.info/sct"))
-                    .addParametersItem(Parameter()
-                        .name("version")
-                        .`in`("query")
-                        .required(false)
-                        .style(Parameter.StyleEnum.SIMPLE)
-                        .description("The version of the system, if one was provided in the source data")
-                        .schema(StringSchema()))
-                    .addParametersItem(Parameter()
-                            .name("coding")
-                            .`in`("query")
-                            .required(false)
-                            .style(Parameter.StyleEnum.SIMPLE)
-                            .description("The system for the code that is to be located")
-                            .schema(StringSchema().format("Coding")))
-                    .addParametersItem(Parameter()
-                        .name("date")
-                        .`in`("query")
-                        .required(false)
-                        .style(Parameter.StyleEnum.SIMPLE)
-                        .description("The date for which the information should be returned.")
-                        .schema(StringSchema().format("dateTime")))
-                    .addParametersItem(Parameter()
-                        .name("displayLanguage")
-                        .`in`("query")
-                        .required(false)
-                        .style(Parameter.StyleEnum.SIMPLE)
-                        .description("The requested language for display (see \$expand.displayLanguage)")
-                        .schema(StringSchema().format("code")))
-              /*      .addParametersItem(Parameter()
+            // Lookup Code [ITI-98]
+            val lookupItem = PathItem()
+                .get(
+                    Operation()
+                        .addTagsItem(getTerminologyTagName(ONTOLOGY))
+                        .summary("Lookup a Code in a Value Set")
+                        .description(
+                            "This transaction is used by the Terminology Consumer to lookup a given code to return the full " +
+                                    "details. The request is received by the Terminology Repository. The Terminology Repository " +
+                                    "processes the request and returns a response of the code details as a Parameters Resource." +
+                                    "\n\nFHIR Definition [lookup](https://www.hl7.org/fhir/R4/operation-codesystem-lookup.html)"
+                        )
+                        .responses(getApiResponses())
+                        .addParametersItem(
+                            Parameter()
+                                .name("code")
+                                .`in`("query")
+                                .required(false)
+                                .style(Parameter.StyleEnum.SIMPLE)
+                                .description("The code that is to be located. If a code is provided, a system must be provided")
+                                .schema(StringSchema().format("code"))
+                                .example("15517911000001104")
+                        )
+                        .addParametersItem(
+                            Parameter()
+                                .name("system")
+                                .`in`("query")
+                                .required(false)
+                                .style(Parameter.StyleEnum.SIMPLE)
+                                .description("The system for the code that is to be located")
+                                .schema(StringSchema().format("url"))
+                                .example("http://snomed.info/sct")
+                        )
+                        .addParametersItem(
+                            Parameter()
+                                .name("version")
+                                .`in`("query")
+                                .required(false)
+                                .style(Parameter.StyleEnum.SIMPLE)
+                                .description("The version of the system, if one was provided in the source data")
+                                .schema(StringSchema())
+                        )
+                        .addParametersItem(
+                            Parameter()
+                                .name("coding")
+                                .`in`("query")
+                                .required(false)
+                                .style(Parameter.StyleEnum.SIMPLE)
+                                .description("The system for the code that is to be located")
+                                .schema(StringSchema().format("Coding"))
+                        )
+                        .addParametersItem(
+                            Parameter()
+                                .name("date")
+                                .`in`("query")
+                                .required(false)
+                                .style(Parameter.StyleEnum.SIMPLE)
+                                .description("The date for which the information should be returned.")
+                                .schema(StringSchema().format("dateTime"))
+                        )
+                        .addParametersItem(
+                            Parameter()
+                                .name("displayLanguage")
+                                .`in`("query")
+                                .required(false)
+                                .style(Parameter.StyleEnum.SIMPLE)
+                                .description("The requested language for display (see \$expand.displayLanguage)")
+                                .schema(StringSchema().format("code"))
+                        )
+                    /*      .addParametersItem(Parameter()
                         .name("property")
                         .`in`("query")
                         .required(false)
@@ -428,105 +477,129 @@ open class OpenApiConfig(@Qualifier("R4") val ctx : FhirContext,
                         .description("A property that the client wishes to be returned in the output. If no properties are specified, the server chooses what to return.")
                         .schema(StringSchema().format("code").maxItems(10))
                         .example("code display property fullySpecifiedName")) */
-                    )
+                )
 
-        oas.path("/FHIR/R4/CodeSystem/\$lookup",lookupItem)
+            oas.path("/FHIR/R4/CodeSystem/\$lookup", lookupItem)
 
-        // Validate Code [ITI-99]
+            // Validate Code [ITI-99]
 
-        val validateCodeItem = PathItem()
-            .get(
-                Operation()
-                    .addTagsItem(getTerminologyTagName(VALIDATION))
-                    .summary("Validate that a coded value is in the set of codes allowed by a value set.")
-                    .description("This transaction is used by the Terminology Consumer to validate the existence of a given code " +
-                            "in a value set or code system. The request is received by the Terminology Repository. The " +
-                            "Terminology Repository processes the request and returns a response as a Parameters Resource." +
-                            "\n\nFHIR Definition [validate-code](https://www.hl7.org/fhir/R4/operation-valueset-validate-code.html)")
-                    .responses(getApiResponses())
-                    .addParametersItem(Parameter()
-                        .name("url")
-                        .`in`("query")
-                        .required(false)
-                        .style(Parameter.StyleEnum.SIMPLE)
-                        .description("Value set Canonical URL. The server must know the value set (e.g. it is defined explicitly in the server's value sets, or it is defined implicitly by some code system known to the server")
-                        .schema(StringSchema().format("uri"))
-                        //.example("https://fhir.nhs.uk/ValueSet/NHSDigital-MedicationRequest-Code")
-                    )
-                    .addParametersItem(Parameter()
-                        .name("code")
-                        .`in`("query")
-                        .required(false)
-                        .style(Parameter.StyleEnum.SIMPLE)
-                        .description("The code that is to be validated. If a code is provided, a system or a context must be provided.")
-                        .schema(StringSchema().format("code"))
-                        .example("15517911000001104"))
-                    .addParametersItem(Parameter()
-                        .name("system")
-                        .`in`("query")
-                        .required(false)
-                        .style(Parameter.StyleEnum.SIMPLE)
-                        .description("The system for the code that is to be validated")
-                        .schema(StringSchema().format("uri"))
-                        .example("http://snomed.info/sct"))
-                    .addParametersItem(Parameter()
-                        .name("display")
-                        .`in`("query")
-                        .required(false)
-                        .style(Parameter.StyleEnum.SIMPLE)
-                        .description("The display associated with the code, if provided. If a display is provided a code must be provided. If no display is provided, the server cannot validate the display value, but may choose to return a recommended display name using the display parameter in the outcome. Whether displays are case sensitive is code system dependent")
-                        .schema(StringSchema())
-                        .example("Methotrexate 10mg/0.2ml solution for injection pre-filled syringes"))
-            )
-        oas.path("/FHIR/R4/ValueSet/\$validate-code",validateCodeItem)
+            val validateCodeItem = PathItem()
+                .get(
+                    Operation()
+                        .addTagsItem(getTerminologyTagName(ONTOLOGY))
+                        .summary("Validate that a coded value is in the set of codes allowed by a value set.")
+                        .description(
+                            "This transaction is used by the Terminology Consumer to validate the existence of a given code " +
+                                    "in a value set or code system. The request is received by the Terminology Repository. The " +
+                                    "Terminology Repository processes the request and returns a response as a Parameters Resource." +
+                                    "\n\nFHIR Definition [validate-code](https://www.hl7.org/fhir/R4/operation-valueset-validate-code.html)"
+                        )
+                        .responses(getApiResponses())
+                        .addParametersItem(
+                            Parameter()
+                                .name("url")
+                                .`in`("query")
+                                .required(false)
+                                .style(Parameter.StyleEnum.SIMPLE)
+                                .description("Value set Canonical URL. The server must know the value set (e.g. it is defined explicitly in the server's value sets, or it is defined implicitly by some code system known to the server")
+                                .schema(StringSchema().format("uri"))
+                            //.example("https://fhir.nhs.uk/ValueSet/NHSDigital-MedicationRequest-Code")
+                        )
+                        .addParametersItem(
+                            Parameter()
+                                .name("code")
+                                .`in`("query")
+                                .required(false)
+                                .style(Parameter.StyleEnum.SIMPLE)
+                                .description("The code that is to be validated. If a code is provided, a system or a context must be provided.")
+                                .schema(StringSchema().format("code"))
+                                .example("15517911000001104")
+                        )
+                        .addParametersItem(
+                            Parameter()
+                                .name("system")
+                                .`in`("query")
+                                .required(false)
+                                .style(Parameter.StyleEnum.SIMPLE)
+                                .description("The system for the code that is to be validated")
+                                .schema(StringSchema().format("uri"))
+                                .example("http://snomed.info/sct")
+                        )
+                        .addParametersItem(
+                            Parameter()
+                                .name("display")
+                                .`in`("query")
+                                .required(false)
+                                .style(Parameter.StyleEnum.SIMPLE)
+                                .description("The display associated with the code, if provided. If a display is provided a code must be provided. If no display is provided, the server cannot validate the display value, but may choose to return a recommended display name using the display parameter in the outcome. Whether displays are case sensitive is code system dependent")
+                                .schema(StringSchema())
+                                .example("Methotrexate 10mg/0.2ml solution for injection pre-filled syringes")
+                        )
+                )
+            oas.path("/FHIR/R4/ValueSet/\$validate-code", validateCodeItem)
 
-        // Query Concept Map [ITI-100]
+            // Query Concept Map [ITI-100]
 
-        oas.path("/FHIR/R4/ConceptMap",getPathItem(getTerminologyTagName(TERMINOLOGY),"ConceptMap", "Concept Map", "url" , "https://fhir.nhs.uk/ConceptMap/eps-issue-code-to-fhir-issue-type",
-            "This transaction is used by the Terminology Consumer that supports the Translate Option to " +
-                    "solicit information about concept maps whose data match data provided in the query parameters " +
-                    "on the request message. The request is received by the Terminology Repository that supports the " +
-                    "Translate Option. The Terminology Repository processes the request and returns a response of " +
-                    "the matching concept maps."))
-
-
-        // Terminology Misc
-
-        val subsumesItem = PathItem()
-            .get(
-                Operation()
-                    .addTagsItem(EXPERIMENTAL)
-                    .summary("Test the subsumption relationship between code A and code B given the semantics of subsumption in the underlying code system ")
-                    .description("[subsumes](https://hl7.org/fhir/R4/codesystem-operation-subsumes.html)")
-                    .responses(getApiResponses())
-                    .addParametersItem(Parameter()
-                        .name("codeA")
-                        .`in`("query")
-                        .required(true)
-                        .style(Parameter.StyleEnum.SIMPLE)
-                        .description("The \"A\" code that is to be tested.")
-                        .schema(StringSchema().format("code"))
-                        .example("15517911000001104"))
-                    .addParametersItem(Parameter()
-                        .name("codeB")
-                        .`in`("query")
-                        .required(true)
-                        .style(Parameter.StyleEnum.SIMPLE)
-                        .description("The \"B\" code that is to be tested.")
-                        .schema(StringSchema().format("code"))
-                        .example("15513411000001100"))
-                    .addParametersItem(Parameter()
-                        .name("system")
-                        .`in`("query")
-                        .required(true)
-                        .style(Parameter.StyleEnum.SIMPLE)
-                        .description("The code system in which subsumption testing is to be performed. This must be provided unless the operation is invoked on a code system instance")
-                        .schema(StringSchema())
-                        .example("http://snomed.info/sct"))
-
+            oas.path(
+                "/FHIR/R4/ConceptMap", getPathItem(
+                    getTerminologyTagName(ONTOLOGY),
+                    "ConceptMap",
+                    "Concept Map",
+                    "url",
+                    "https://fhir.nhs.uk/ConceptMap/eps-issue-code-to-fhir-issue-type",
+                    "This transaction is used by the Terminology Consumer that supports the Translate Option to " +
+                            "solicit information about concept maps whose data match data provided in the query parameters " +
+                            "on the request message. The request is received by the Terminology Repository that supports the " +
+                            "Translate Option. The Terminology Repository processes the request and returns a response of " +
+                            "the matching concept maps."
+                )
             )
 
-        oas.path("/FHIR/R4/CodeSystem/\$subsumes",subsumesItem)
+
+            // Terminology Misc
+
+            val subsumesItem = PathItem()
+                .get(
+                    Operation()
+                        .addTagsItem(EXPERIMENTAL)
+                        .summary("Test the subsumption relationship between code A and code B given the semantics of subsumption in the underlying code system ")
+                        .description("[subsumes](https://hl7.org/fhir/R4/codesystem-operation-subsumes.html)")
+                        .responses(getApiResponses())
+                        .addParametersItem(
+                            Parameter()
+                                .name("codeA")
+                                .`in`("query")
+                                .required(true)
+                                .style(Parameter.StyleEnum.SIMPLE)
+                                .description("The \"A\" code that is to be tested.")
+                                .schema(StringSchema().format("code"))
+                                .example("15517911000001104")
+                        )
+                        .addParametersItem(
+                            Parameter()
+                                .name("codeB")
+                                .`in`("query")
+                                .required(true)
+                                .style(Parameter.StyleEnum.SIMPLE)
+                                .description("The \"B\" code that is to be tested.")
+                                .schema(StringSchema().format("code"))
+                                .example("15513411000001100")
+                        )
+                        .addParametersItem(
+                            Parameter()
+                                .name("system")
+                                .`in`("query")
+                                .required(true)
+                                .style(Parameter.StyleEnum.SIMPLE)
+                                .description("The code system in which subsumption testing is to be performed. This must be provided unless the operation is invoked on a code system instance")
+                                .schema(StringSchema())
+                                .example("http://snomed.info/sct")
+                        )
+
+                )
+            oas.path("/FHIR/R4/CodeSystem/\$subsumes",subsumesItem)
+        }
+
 
         if (servicesProperties.R4B) {
 
@@ -876,9 +949,20 @@ open class OpenApiConfig(@Qualifier("R4") val ctx : FhirContext,
 
     fun getPackages() : String {
         var packages = ""
-        val configurationInputStream = ClassPathResource("manifest.json").inputStream
-        val manifest = objectMapper.readValue(configurationInputStream, Array<SimplifierPackage>::class.java)
-        manifest.forEach {
+        var manifest : Array<SimplifierPackage>? = null
+        if (fhirServerProperties.igs != null && !fhirServerProperties.igs!!.isEmpty()   ) {
+            val packages= fhirServerProperties.igs!!.split(",")
+            val manifest2 = arrayListOf<SimplifierPackage>()
+            packages.forEachIndexed{ index, pkg  ->
+                manifest2.add(SimplifierPackage(pkg.substringBefore("#"),pkg.substringAfter("#")))
+            }
+            manifest = manifest2.toTypedArray()
+        } else {
+            val configurationInputStream = ClassPathResource("manifest.json").inputStream
+            manifest = objectMapper.readValue(configurationInputStream, Array<SimplifierPackage>::class.java)
+        }
+
+        manifest!!.forEach {
             packages += " | "+ it.packageName + " | " + it.version + " | "
             if (it.packageName.contains("ukcore")) {
                 packages +=  "[UK Core Implementation Guide](https://simplifier.net/guide/ukcoreversionhistory?version=current)"

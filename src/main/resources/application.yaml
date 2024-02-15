@@ -15,9 +15,9 @@ management:
 
 fhir:
   server:
-    name: NHS England Interoperability Standards FHIR Testing
+    name: FHIR Development and Testing (FHIR Validation) Skunkworks
     baseUrl: http://localhost:9001
-    version: 6.10.27
+    version: 6.10.28
 
 services:
   R4: true

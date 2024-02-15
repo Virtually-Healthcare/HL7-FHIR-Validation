@@ -1,3 +1,5 @@
+## AWS 
+
 Initial user Setup
 
 https://nhsd-confluence.digital.nhs.uk/display/AWS/001+-+Use+AWS+CLI+with+MFA
@@ -23,21 +25,26 @@ mvn clean install
 docker build -t fhir-validator-r4 .
 
 docker tag fhir-validator-r4:latest 365027538941.dkr.ecr.eu-west-2.amazonaws.com/fhir-validator-r4:latest
-docker tag fhir-validator-r4:latest 365027538941.dkr.ecr.eu-west-2.amazonaws.com/fhir-validator-r4:6.10.27
+docker tag fhir-validator-r4:latest 365027538941.dkr.ecr.eu-west-2.amazonaws.com/fhir-validator-r4:6.10.28
 
-docker push 365027538941.dkr.ecr.eu-west-2.amazonaws.com/fhir-validator-r4:6.10.27
+docker push 365027538941.dkr.ecr.eu-west-2.amazonaws.com/fhir-validator-r4:6.10.28
 docker push 365027538941.dkr.ecr.eu-west-2.amazonaws.com/fhir-validator-r4:latest
 
 ## Docker
 
+mvn clean install
+
+docker build -t fhir-validator-r4 .
+
 docker tag fhir-validator-r4:latest thorlogic/fhir-validator-r4:latest
-docker tag fhir-validator-r4:latest thorlogic/fhir-validator-r4:6.10.27
+docker tag fhir-validator-r4:latest thorlogic/fhir-validator-r4:6.10.28
 
 docker push thorlogic/fhir-validator-r4:latest
+docker push thorlogic/fhir-validator-r4:6.10.28
 
 ### Cloud Formation Notes
 
-Command is
+Do not use
 
 aws cloudformation deploy --template-file C:\Development\NHSDigital\validation-service-fhir-r4\cloudfront\IOPSValidation.yaml --stack-name test-stack
 
