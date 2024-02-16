@@ -3,6 +3,8 @@ target/
 src/main/resources/validation.json
 src/main/resources/nhs-validation.json
 src/main/resources/implementationGuides/*.tgz
+src/main/resources/static/web/*.*
+src/main/resources/static/app/*.*
 src/uk.nhs.digital.fhir.fwoa.main/resources/*.tgz
 !.mvn/wrapper/maven-wrapper.jar
 !**/src/main/**/target/

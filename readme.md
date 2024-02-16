@@ -26,7 +26,7 @@ https://hub.docker.com/repository/docker/thorlogic/fhir-validator-r4/general
 This should work without the configuration below
 Port is expected to be 9001
 
-`docker run --env=fhir.igs=fhir.r4.ukcore.stu3.currentbuild#0.0.3-pre-release --env=fhir.server.baseUrl=http://localhost:9001 -p 9001:9001 --runtime=runc thorlogic/fhir-validator-r4:latest`
+`docker run --env=fhir.igs=fhir.r4.ukcore.stu3.currentbuild#0.0.3-pre-release --env=fhir.server.baseUrl=http://localhost -p 80:9001 --runtime=runc thorlogic/fhir-validator-r4:latest`
 
 
 ## Environmental Variables

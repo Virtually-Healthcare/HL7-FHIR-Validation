@@ -4,6 +4,9 @@ server:
     threads:
       max: 10
   forward-headers-strategy: native
+  error:
+    whitelabel:
+      enabled=false:
 
 management:
   health:
