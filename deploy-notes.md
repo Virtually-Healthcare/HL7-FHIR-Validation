@@ -1,47 +1,19 @@
 ## AWS 
 
-Initial user Setup
+Use AWS Toolkit terminal 
 
-https://nhsd-confluence.digital.nhs.uk/display/AWS/001+-+Use+AWS+CLI+with+MFA
-
-Logon using MFA - MFA needs replacing in the following
-
-aws --profile kevin.mayfield1 sts get-session-token --serial-number arn:aws:iam::347250048819:mfa/kevin.mayfield1 --duration-seconds 129600 --token-code MFA
-
-aws configure --profile default set aws_access_key_id {from above}
-aws configure --profile default set aws_secret_access_key {from above}
-aws configure --profile default set aws_session_token
-
-Then run
-
-aws sts assume-role --role-arn arn:aws:iam::365027538941:role/NHSDAdminRole --role-session-name bob
-
-And repeat configure step?
-
-aws ecr get-login-password --region eu-west-2 | docker login --username AWS --password-stdin 365027538941.dkr.ecr.eu-west-2.amazonaws.com
-
-
-mvn clean install
-
-ng build --configuration production --output-path ../src/main/resources/static --base-href ./
-
-
-docker build -t fhir-validator-r4 .
-
-docker tag fhir-validator-r4:latest 365027538941.dkr.ecr.eu-west-2.amazonaws.com/fhir-validator-r4:latest
-docker tag fhir-validator-r4:latest 365027538941.dkr.ecr.eu-west-2.amazonaws.com/fhir-validator-r4:6.10.34
-
-docker push 365027538941.dkr.ecr.eu-west-2.amazonaws.com/fhir-validator-r4:6.10.34
-docker push 365027538941.dkr.ecr.eu-west-2.amazonaws.com/fhir-validator-r4:latest
-
-## Docker
+`aws ecr get-login-password --region eu-west-2 | docker login --username AWS --password-stdin 365027538941.dkr.ecr.eu-west-2.amazonaws.com`
 
 Do this first if app has changed or app code is not present in the static folder
 (may need to run `git submodule update` and `npm install`)
 
-ng build --configuration docker --output-path ../src/main/resources/static --base-href ./
+In **interoperability-standards-tools-skunkworks** folder 
 
-mvn clean install -P dockerBuild,dockerRelease
+`ng build --configuration production --output-path ../src/main/resources/static --base-href ./`
+
+In root folder 
+
+`mvn clean install -P dockerBuild,dockerRelease,awsRelease`
 
 
 ### Cloud Formation Notes
