@@ -10,7 +10,7 @@
     </parent>
     <groupId>uk.nhs.england</groupId>
     <artifactId>IOPS-FHIR-Validation-Service</artifactId>
-    <version>6.10.33</version>
+    <version>6.10.34</version>
     <name>IOPS-FHIR-Validation-Service</name>
     <description>HAPI FHIR Validator using Spring Boot</description>
 
@@ -224,5 +224,121 @@
             </plugin>
         </plugins>
     </build>
+    <profiles>
+        <profile>
+            <id>dockerBuild</id>
 
+            <build>
+                <plugins>
+                    <plugin>
+                        <artifactId>maven-resources-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>copy-resources</id>
+                                <phase>validate</phase>
+                                <goals>
+                                    <goal>copy-resources</goal>
+                                </goals>
+                                <configuration>
+                                    <outputDirectory>${basedir}/target</outputDirectory>
+                                    <resources>
+                                        <resource>
+                                            <directory>src/main/docker</directory>
+                                            <filtering>true</filtering>
+                                        </resource>
+                                    </resources>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-antrun-plugin</artifactId>
+                        <version>1.6</version>
+                        <executions>
+                            <execution>
+                                <id>prepare-package</id>
+                                <phase>package</phase>
+                                <inherited>false</inherited>
+                                <configuration>
+                                    <target>
+                                        <exec executable="docker">
+                                            <arg value="build"/>
+                                            <arg value="-t"/>
+                                            <arg value="fhir-validator-r4:${project.version}"/>
+                                            <arg value="."/>
+                                        </exec>
+                                    </target>
+                                </configuration>
+                                <goals>
+                                    <goal>run</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+            <activation>
+                <activeByDefault>true</activeByDefault>
+            </activation>
+        </profile>
+        <!-- docker Image push and release profile -->
+        <profile>
+            <id>dockerRelease</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-antrun-plugin</artifactId>
+                        <version>1.6</version>
+                        <executions>
+                            <execution>
+                                <phase>install</phase>
+                                <inherited>false</inherited>
+                                <configuration>
+                                    <target>
+                                        <exec executable="docker">
+                                            <arg value="tag"/>
+                                            <arg value="fhir-validator-r4:${project.version}"/>
+                                            <arg value="fhir-validator-r4:latest"/>
+                                        </exec>
+                                        <exec executable="docker">
+                                            <arg value="tag"/>
+                                            <arg value="fhir-validator-r4:${project.version}"/>
+                                            <arg value="thorlogic/fhir-validator-r4:latest"/>
+                                        </exec>
+                                        <exec executable="docker">
+                                            <arg value="tag"/>
+                                            <arg value="fhir-validator-r4:${project.version}"/>
+                                            <arg value="thorlogic/fhir-validator-r4:${project.version}"/>
+                                        </exec>
+                                        <exec executable="docker">
+                                            <arg value="push"/>
+                                            <arg value="fhir-validator-r4:latest"/>
+                                        </exec>
+                                        <exec executable="docker">
+                                            <arg value="push"/>
+                                            <arg value="fhir-validator-r4:${project.version}"/>
+                                        </exec>
+                                        <exec executable="docker">
+                                            <arg value="push"/>
+                                            <arg value="thorlogic/fhir-validator-r4:${project.version}"/>
+                                        </exec>
+                                        <exec executable="docker">
+                                            <arg value="push"/>
+                                            <arg value="thorlogic/fhir-validator-r4:latest"/>
+                                        </exec>
+                                    </target>
+                                </configuration>
+                                <goals>
+                                    <goal>run</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
 </project>
