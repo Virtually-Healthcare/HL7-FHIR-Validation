@@ -5,7 +5,7 @@ Use AWS Toolkit terminal
 `aws ecr get-login-password --region eu-west-2 | docker login --username AWS --password-stdin 365027538941.dkr.ecr.eu-west-2.amazonaws.com`
 
 Do this first if app has changed or app code is not present in the static folder
-(may need to run `git submodule update` and `npm install`)
+(may need to run `git submodule update` (maybe `git submodule foreach git pull`) and `npm install`)
 
 In **interoperability-standards-tools-skunkworks** folder 
 

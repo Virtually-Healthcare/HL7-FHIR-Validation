@@ -9,10 +9,7 @@ import org.apache.commons.lang3.Validate;
 import org.hl7.fhir.instance.model.api.IBase;
 import org.hl7.fhir.instance.model.api.IBaseResource;
 import org.hl7.fhir.instance.model.api.IPrimitiveType;
-import org.hl7.fhir.r4.model.CodeSystem;
-import org.hl7.fhir.r4.model.NamingSystem;
-import org.hl7.fhir.r4.model.StructureDefinition;
-import org.hl7.fhir.r4.model.ValueSet;
+import org.hl7.fhir.r4.model.*;
 import org.jetbrains.annotations.Nullable;
 
 import javax.annotation.Nonnull;
@@ -37,6 +34,7 @@ public class PrePopulatedValidationSupport extends BaseStaticResourceValidationS
     private final Map<String, IBaseResource> myStructureDefinitions;
     private final Map<String, IBaseResource> myValueSets;
     private final Map<String, IBaseResource> myOtherConformanceResources;
+
 
     /**
      * Constructor
@@ -66,6 +64,16 @@ public class PrePopulatedValidationSupport extends BaseStaticResourceValidationS
         myValueSets = theValueSets;
         myCodeSystems = theCodeSystems;
         myOtherConformanceResources = theOtherConformanceResources;
+    }
+
+    public ImplementationGuide findIg(String pckg, String version) {
+        ImplementationGuide ig = null;
+        for (IBaseResource result : myOtherConformanceResources.values()) {
+            if (result instanceof ImplementationGuide && pckg.equals(((ImplementationGuide) result).getPackageId())) {
+                return (ImplementationGuide) result;
+            }
+        }
+        return ig;
     }
 
     /**
@@ -201,6 +209,7 @@ public class PrePopulatedValidationSupport extends BaseStaticResourceValidationS
             case "OperationDefinition":
             case "SearchParameter":
             case "CapabilityStatement":
+            case "ImplementationGuide":
             case "ConceptMap":
            // case "NamingSystem": had no url
             //case "ObservationDefinition": //TODO - ObservationDefinition doesn't have a "url" field so this breaks

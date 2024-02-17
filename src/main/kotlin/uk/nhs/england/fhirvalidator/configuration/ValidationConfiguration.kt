@@ -12,6 +12,7 @@ import mu.KLogging
 import org.hl7.fhir.common.hapi.validation.support.*
 import org.hl7.fhir.common.hapi.validation.validator.FhirInstanceValidator
 import org.hl7.fhir.r4.model.CapabilityStatement
+import org.hl7.fhir.r4.model.ImplementationGuide
 import org.hl7.fhir.r4.model.StructureDefinition
 import org.hl7.fhir.utilities.json.model.JsonProperty
 import org.hl7.fhir.utilities.npm.NpmPackage
@@ -22,6 +23,7 @@ import org.springframework.context.annotation.Configuration
 import org.springframework.core.io.ClassPathResource
 import org.springframework.security.oauth2.client.OAuth2AuthorizedClientManager
 import uk.nhs.england.fhirvalidator.awsProvider.*
+import uk.nhs.england.fhirvalidator.model.DependsOn
 import uk.nhs.england.fhirvalidator.model.FHIRPackage
 import uk.nhs.england.fhirvalidator.model.SimplifierPackage
 import uk.nhs.england.fhirvalidator.service.ImplementationGuideParser
@@ -92,17 +94,18 @@ open class ValidationConfiguration(
         if (messageProperties.getAWSValidationSupport()) supportChain.addValidationSupport( AWSValidationSupport(fhirContext, awsQuestionnaire,awsCodeSystem,awsValueSet, awsConceptMap))
         val manifest = getPackages()
         if (npmPackages != null) {
+            /*
             npmPackages!!
                 .filter { !it.name().equals("hl7.fhir.r4.examples") }
                 .map(implementationGuideParser::createPrePopulatedValidationSupport)
 
                 .forEach(supportChain::addValidationSupport)
 
-            //Initialise now instead of when the first message arrives
-            generateSnapshots(supportChain)
-            supportChain.fetchCodeSystem("http://snomed.info/sct")
-            // packages have been processed so remove them
-            for (pckg in npmPackages) {
+             */
+            val npms = npmPackages!!.filter { !it.name().equals("hl7.fhir.r4.examples") }
+            for (pckg in npms) {
+                val support = implementationGuideParser.createPrePopulatedValidationSupport(pckg)
+                supportChain.addValidationSupport(support)
                 var description = pckg.description()
                 if (description == null) description = ""
                 var derived = true
@@ -111,9 +114,48 @@ open class ValidationConfiguration(
                         if (it.packageName.equals(pckg.name())) derived = false
                     }
                 }
-                var newPckg = FHIRPackage(pckg.name(),pckg.version(),description,pckg.url(),derived)
+                val dependsOn = ArrayList<DependsOn>()
+                for (dependency in pckg.dependencies()) {
+                    val pckgStrs = dependency.split("#")
+                    if (pckgStrs.size>1) {
+                        // dummy value for now
+                        var uri = "https://example.fhir.org/ImplementationGuide/" + pckgStrs[0] + "|" + pckgStrs[1]
+                        if (pckgStrs[0].contains("hl7.fhir.r4.core")) uri = "https://hl7.org/fhir/R4/"
+                        if (pckgStrs[0].contains("ukcore")) uri = "https://simplifier.net/guide/ukcoreversionhistory"
+                        if (pckgStrs[0].contains("nhsengland")) uri = "https://simplifier.net/guide/nhs-england-implementation-guide-version-history"
+                        val depends = DependsOn(
+                            pckgStrs[0],
+                            pckgStrs[1],
+                            uri
+                        )
+                        dependsOn.add(depends)
+                    }
+                }
+                var packUrl = pckg.url()
+                if (pckg.name().contains("hl7.fhir.r4.core")) packUrl = "https://hl7.org/fhir/R4/"
+                if (pckg.name().contains("ukcore")) packUrl = "https://simplifier.net/guide/ukcoreversionhistory"
+                if (pckg.name().contains("nhsengland")) packUrl = "https://simplifier.net/guide/nhs-england-implementation-guide-version-history"
+                var newPckg = FHIRPackage(pckg.name(),pckg.version(),description,packUrl,derived,dependsOn)
                 this.fhirPackage.add(newPckg)
             }
+            //Initialise now instead of when the first message arrives
+            generateSnapshots(supportChain)
+            supportChain.fetchCodeSystem("http://snomed.info/sct")
+            // Correct dependencies canonical urls
+            for (pkg in this.fhirPackage) {
+                if (pkg.canonicalUri !== null && pkg.derived) {
+                    for (otherPkg in this.fhirPackage) {
+                        if (!otherPkg.packageName.equals(pkg.packageName) && !otherPkg.version.equals(pkg.version) && otherPkg.dependencies !== null) {
+                            for (depencyPkg in otherPkg.dependencies) {
+                                if (depencyPkg.packageName.equals(pkg.packageName) && depencyPkg.version.equals(pkg.version)) {
+                                    depencyPkg.canonicalUri = pkg.canonicalUri
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            // packages have been processed so remove them
             npmPackages = emptyList()
             return supportChain
         } else {

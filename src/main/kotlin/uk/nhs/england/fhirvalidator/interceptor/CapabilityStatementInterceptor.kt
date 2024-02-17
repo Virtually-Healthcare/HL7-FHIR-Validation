@@ -33,8 +33,8 @@ class CapabilityStatementInterceptor(
         val cs: CapabilityStatement = theCapabilityStatement as CapabilityStatement
 
         // Customize the CapabilityStatement as desired
-        val apiextension = Extension();
-        apiextension.url = "https://fhir.nhs.uk/StructureDefinition/Extension-NHSDigital-CapabilityStatement-Package"
+       // val apiextension = Extension();
+      //  apiextension.url = "https://fhir.nhs.uk/StructureDefinition/Extension-NHSDigital-CapabilityStatement-Package"
         /*
          if (enhance && fhirPackage !== null && fhirPackage.size > 0) {
              var igDescription = "\n\n | FHIR Implementation Guide | Version |\n |-----|-----|\n"
@@ -57,32 +57,36 @@ class CapabilityStatementInterceptor(
 
             fhirPackage.forEach {
                 if (!it.derived) {
-                   /* 27 Jan 2024 Use contained instead
-                    val packageExtension = Extension();
-                    packageExtension.url = "FHIRPackage"
-                    packageExtension.extension.add(Extension().setUrl("name").setValue(StringType(it.name)))
-                    packageExtension.extension.add(Extension().setUrl("version").setValue(StringType(it.version)))
-                    apiextension.extension.add(packageExtension) */
                     var implementationGuide = ImplementationGuide()
-                    implementationGuide.packageId = it.name
+                    implementationGuide.packageId = it.packageName
                     implementationGuide.version = it.version
                     implementationGuide.status = Enumerations.PublicationStatus.UNKNOWN
-                    implementationGuide.name = it.name
-                    implementationGuide.url =
-                        "https://example.fhir.org/ImplementationGuide/" + it.name + "|" + it.version
-                    implementationGuide.id = it.name
-                    cs.implementationGuide.add(CanonicalType("#" + it.name))
+                    implementationGuide.name = it.packageName
+                    implementationGuide.url = it.canonicalUri
+                    implementationGuide.id = it.packageName
+                    if (it.dependencies !== null) {
+                        for (dependency in it.dependencies) {
+                            implementationGuide.dependsOn.add(
+                                ImplementationGuide.ImplementationGuideDependsOnComponent()
+                                    .setPackageId(dependency.packageName)
+                                    .setVersion(dependency.version)
+                                    .setUri(dependency.canonicalUri)
+                            )
+                        }
+                    }
+                    cs.implementationGuide.add(CanonicalType("#" + it.packageName))
                     cs.contained.add(implementationGuide)
                 }
             }
 
+        /*
         val packageExtension = Extension();
         packageExtension.url="openApi"
         packageExtension.extension.add(Extension().setUrl("documentation").setValue(UriType("https://simplifier.net/guide/NHSDigital/Home")))
         packageExtension.extension.add(Extension().setUrl("description").setValue(StringType("NHS England FHIR Implementation Guide")))
         apiextension.extension.add(packageExtension)
         cs.extension.add(apiextension)
-
+*/
 
         for (resourceIG in supportChain.fetchAllConformanceResources()?.filterIsInstance<CapabilityStatement>()!!) {
             if (resourceIG.url.contains(".uk")) {

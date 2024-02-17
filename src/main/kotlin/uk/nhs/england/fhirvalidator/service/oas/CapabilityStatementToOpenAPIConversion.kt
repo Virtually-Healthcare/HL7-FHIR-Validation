@@ -2100,10 +2100,10 @@ class CapabilityStatementToOpenAPIConversion(@Qualifier("R4") private val ctx: F
         var path = profile
         for(guide in fhirPackage) {
             if (!guide.version.contains("0.0.0") && (
-                        guide.name.contains("england") ||
-                                guide.name.contains("ukcore")
+                        guide.packageName.contains("england") ||
+                                guide.packageName.contains("ukcore")
                         )) {
-                path = "https://simplifier.net/resolve?fhirVersion=R4&scope="+ guide.name  + "@" + guide.version + "&canonical="+profile
+                path = "https://simplifier.net/resolve?fhirVersion=R4&scope="+ guide.packageName  + "@" + guide.version + "&canonical="+profile
             }
         }
         if (path == null) return ""
