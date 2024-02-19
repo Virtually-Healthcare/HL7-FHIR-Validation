@@ -13,6 +13,7 @@ import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.stereotype.Component
 import uk.nhs.england.fhirvalidator.service.ImplementationGuideParser
+import uk.nhs.england.fhirvalidator.util.MyUriResolver
 import java.io.ByteArrayInputStream
 import javax.servlet.http.HttpServletRequest
 import javax.servlet.http.HttpServletResponse
@@ -48,7 +49,10 @@ class CompostionProvider(@Qualifier("R4") private val fhirContext: FhirContext,
         if (document.type !== Bundle.BundleType.DOCUMENT) {
             throw UnprocessableEntityException("Not a FHIR Document")
         }
-        // Set the property to use xalan processor
+        // Set the property to use saxon processor
+        System.setProperty("javax.xml.transform.TransformerFactory", "net.sf.saxon.BasicTransformerFactory")
+
+        // Saxon is hanging at the moment so using xalan
         System.setProperty(
             "javax.xml.transform.TransformerFactory",
             "org.apache.xalan.processor.TransformerFactoryImpl"
@@ -57,11 +61,14 @@ class CompostionProvider(@Qualifier("R4") private val fhirContext: FhirContext,
 
         val xmlSource = StreamSource(xml.byteInputStream())
         val classLoader = javaClass.classLoader
-       // val inputStream = classLoader.getResourceAsStream("xslt/DocumentToHTML.xslt")
-        val inputStream = classLoader.getResourceAsStream("xslt/r4DocumentToHTML.xslt")
+
+        val inputStream = classLoader.getResourceAsStream("xslt/DocumentToHTML.xslt")
         val xsltSource = StreamSource(inputStream)
 
         val transformerFactory = TransformerFactory.newInstance()
+        //val transformerFactory = net.sf.saxon.TransformerFactoryImpl()
+        transformerFactory.setURIResolver(MyUriResolver())
+
         val transformer: Transformer = transformerFactory.newTransformer(xsltSource)
 
         val os = ByteArrayOutputStream()

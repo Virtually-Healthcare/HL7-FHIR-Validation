@@ -26,26 +26,38 @@
   - limitations under the License.
   -->
 
-<xsl:stylesheet xmlns="http://www.w3.org/1999/xhtml" xmlns:xsl="http://www.w3.org/1999/XSL/Transform" xmlns:fhir="http://hl7.org/fhir" xmlns:xhtml="http://www.w3.org/1999/xhtml" version="1.0" exclude-result-prefixes="xhtml">
+<xsl:stylesheet
+        xmlns="http://www.w3.org/1999/xhtml"
+        xmlns:xsl="http://www.w3.org/1999/XSL/Transform"
+        xmlns:fhir="http://hl7.org/fhir"
+        xmlns:xhtml="http://www.w3.org/1999/xhtml"
+        xmlns:util="urn:hl7:utilities"
+        version="1.0" exclude-result-prefixes="xhtml xsl fhir util">
+  <xsl:import href="utilities.xsl"/>
   <xsl:output indent="yes" encoding="ISO-8859-1"/>
-  <!-- Fixed values are defined as parameters so they can be overridden to expose content in other languages, etc. -->
-  <xsl:param name="untitled_doc" select="'Untitled Document'"/>
-  <xsl:param name="no_human_display" select="'No human-readable content available'"/>
-  <xsl:param name="subject-heading" select="'Subject Details'"/>
-  <xsl:param name="author-heading" select="'Author Details'"/>
-  <xsl:param name="encounter-heading" select="'Encounter Information'"/>
-  <xsl:param name="untitled_section" select="'Untitled Section'"/>
 
   <xsl:template match="/">
     <!-- Check that we're actually dealing with a document, and if so, start processing with the Composition resource -->
     <xsl:if test="not(fhir:Bundle)">
-      <xsl:message terminate="yes">Source document must be a bundle</xsl:message>
+      <xsl:message terminate="yes">
+        <xsl:call-template name="util:getLocalizedString">
+          <xsl:with-param name="key" select="'err-fhir-1'"/>
+        </xsl:call-template>
+      </xsl:message>
     </xsl:if>
     <xsl:if test="not(fhir:Bundle/fhir:entry[1]/fhir:resource/fhir:Composition)">
-      <xsl:message terminate="yes">Bundle must start with a Composition resource</xsl:message>
+      <xsl:message terminate="yes">
+        <xsl:call-template name="util:getLocalizedString">
+          <xsl:with-param name="key" select="'err-fhir-2'"/>
+        </xsl:call-template>
+      </xsl:message>
     </xsl:if>
     <xsl:if test="not(fhir:Bundle/fhir:type/@value='document')">
-      <xsl:message>Warning: Bundle type does not indicate it is a document.  <xsl:value-of select="fhir:Bundle/fhir:type/@value"/></xsl:message>
+      <xsl:message terminate="yes">
+        <xsl:call-template name="util:getLocalizedString">
+          <xsl:with-param name="key" select="'err-fhir-3'"/>
+        </xsl:call-template>
+      </xsl:message>
     </xsl:if>
     <xsl:apply-templates select="fhir:Bundle/fhir:entry[1]/fhir:resource/fhir:Composition"/>
   </xsl:template>
@@ -53,73 +65,28 @@
   <xsl:template match="fhir:Composition">
     <!-- Generate HTML for document 'header' elements, then process sections
          Rules as documented in http://hl7.org/fhir/documents.html#presentation -->
-    <xsl:variable name="title">
+    <xsl:variable name="titleStr">
       <!-- Determine the title for the document, using a placeholder if there isn't one -->
       <xsl:choose>
         <xsl:when test="normalize-space(fhir:title/@value)!=''">
           <xsl:value-of select="fhir:title/@value"/>
         </xsl:when>
         <xsl:otherwise>
-          <xsl:value-of select="$untitled_doc"/>
+          <xsl:call-template name="util:getLocalizedString">
+            <xsl:with-param name="key" select="'untitled_doc'"/>
+          </xsl:call-template>
         </xsl:otherwise>
       </xsl:choose>
     </xsl:variable>
     <html>
       <head>
         <title>
-          <xsl:value-of select="$title"/>
+          <xsl:value-of select="$titleStr"/>
         </title>
-        <style type="text/css">
-          body { color: #000000; font-size: 10pt; line-height: normal; font-family: Verdana, Arial, sans-serif; margin: 10px; }
-          h1 { font-size: 14pt; text-decoration: underline; font-weight: bold; color: #000000; margin-top: 25px; margin-bottom: 15px;}
-          h2 { font-size: 12pt; text-decoration: underline; font-weight: bold; color: #000000; margin-top: 25px; margin-bottom: 15px; }
-          h3 { font-size: 10pt; font-weight: bold; color: #000000; margin-top: 5px; margin-bottom: 15px; }
-          h4 { font-size: 10pt; font-weight: bold; text-decoration: underline; color: #000000; margin-top: 5px; margin-bottom: 15px; }
-          h5 { font-size: 10pt; font-weight: normal; text-decoration: underline;  color: #000000; margin-top: 5px; margin-bottom: 15px; }
-          h6 { font-size: 10pt; font-weight: normal; color: #000000; margin-top: 5px; margin-bottom: 15px; }
-          table { border: 1px solid lightgrey;   table-layout: fixed; text-align: left; width: 100%;}
-          th.default {padding: 3px; color: #000000; background-color: #eeeeee; text-align: left;}
-          th {padding: 3px; font-size: 10pt;}
-          td {padding: 3px; font-size: 10pt;}
-          /*Banner styles*/
-          div.banner {margin-bottom: 30px; border: 1px solid #000000; background-color: #eeeeee;}
-          div.banner TABLE {border: 1px solid black; background-color: #ffffff; margin-bottom: 5px; }
-          div.banner TD {background-color: #eeeeee; vertical-align: top; padding: 3px; font-weight: normal; font-size: 12pt;}
-          div.banner TH {background-color: #dddddd; vertical-align: top; padding: 3px; font-weight: bold; font-size: 12pt;}
-          div.banner TABLE P {margin: 0;}
-          div.banner-partial-cream {margin-bottom: 30px; border: 1px solid #000000; background-color: #ffffee; padding-left: 5px;}
-          div.banner-partial-cream TABLE {border: 0px; background-color: #ffffee;}
-          div.banner-partial-cream TD {background-color: #ffffee; vertical-align: top; padding: 3px; font-weight: bold; font-size: 12pt;}
-          div.banner-partial-cream TH {background-color: #ffffee; vertical-align: top; padding: 3px; font-weight: normal; font-style:italic; font-size: 12pt;}
-          div.banner-partial-cream TABLE P {margin: 0;}
-          div.banner-partial-violet {margin-bottom: 30px; border: 1px solid #000000; background-color: #eeeeff; padding-left: 5px;}
-          div.banner-partial-violet TABLE {border: 0px; background-color: #eeeeff; }
-          div.banner-partial-violet TD {background-color: #eeeeff; vertical-align: top; padding: 3px; font-weight: bold; font-size: 12pt;}
-          div.banner-partial-violet TH {background-color: #ffffee; vertical-align: top; padding: 3px; font-weight: normal; font-style:italic; font-size: 12pt;}
-          div.banner-partial-violet TABLE P {margin: 0;}
-          div.banner-partial-gray {margin-bottom: 30px; border: 0px solid #000000; background-color: #ffffff; padding-left: 5px;}
-          div.banner-partial-gray TABLE {border: 1px solid black; background-color: #ffffff; margin-bottom: 5px; }
-          div.banner-partial-gray TD {background-color: #eeeeee; vertical-align: top; padding: 3px; font-weight: normal; font-size: 12pt;}
-          div.banner-partial-gray TH {background-color: #dddddd; vertical-align: top; padding: 3px; font-weight: bold; font-size: 12pt;}
-          div.banner-partial-gray TABLE P {margin: 0; }
-          .label {font-style:italic; font-weight: normal;}
-          .bold {font-weight: bold;}
-          .bold-italic {font-style:italic; font-weight: bold;}
-
-          /******************** CONFIG OPTIONS FOR RENDERING - START ********************/
-          /************************************************************************************************/
-          /* The FHIR Renderer has two options to either display the Full resource with all elements or a Partial resource with chosen elements,
-          to hide a particular view then un-comment the statement to hide, e.g. un-comment display:none so it will not display that particular view. */
-          #bundledetails-full {display: none;}
-          #full-resources {display: none;}
-          //#partial-resources {display: none;}
-          /**********************************************************************************************/
-          /******************** CONFIG OPTIONS FOR RENDERING - END ********************/
-        </style>
       </head>
       <body>
         <h1>
-          <xsl:value-of select="$title"/>
+          <xsl:value-of select="$titleStr"/>
         </h1>
         <hr/>
         <xsl:apply-templates mode="reference" select="fhir:subject"/>
@@ -154,7 +121,9 @@
       </xsl:when>
       <xsl:otherwise>
         <p>
-          <xsl:value-of select="$no_human_display"/>
+          <xsl:call-template name="util:getLocalizedString">
+            <xsl:with-param name="key" select="'no_human_display'"/>
+          </xsl:call-template>
         </p>
       </xsl:otherwise>
     </xsl:choose>
@@ -201,7 +170,10 @@
               - We *could* use document(@value) to try to retrieve the remote resource, but seeing as the
               - document's obviously non-conformant, we'll raise an error instead. -->
             <xsl:message terminate="no">
-              <xsl:value-of select="concat('Error: The document composition includes a reference to a resource not contained inside the document bundle: ', @value)"/>
+              <xsl:call-template name="util:getLocalizedString">
+                <xsl:with-param name="key" select="'err-fhir-4'"/>
+              </xsl:call-template>
+              <xsl:value-of select="@value"/>
             </xsl:message>
           </xsl:when>
           <xsl:otherwise>
@@ -242,7 +214,10 @@
       <xsl:otherwise>
         <!-- can't determine a full URI; stop ? -->
         <xsl:message terminate="yes">
-          <xsl:value-of select="concat('Error: A referenced resource is not contained and is not fully qualified:  ', @value)"/>
+          <xsl:call-template name="util:getLocalizedString">
+            <xsl:with-param name="key" select="'err-fhir-5'"/>
+          </xsl:call-template>
+          <xsl:value-of select="@value"/>
         </xsl:message>
       </xsl:otherwise>
     </xsl:choose>
@@ -298,7 +273,9 @@
             <xsl:value-of select="fhir:title/@value"/>
           </xsl:when>
           <xsl:otherwise>
-            <xsl:value-of select="$untitled_section"/>
+            <xsl:call-template name="util:getLocalizedString">
+              <xsl:with-param name="key" select="'untitled-section'"/>
+            </xsl:call-template>
           </xsl:otherwise>
         </xsl:choose>
       </xsl:element>
@@ -322,7 +299,9 @@
       </xsl:when>
       <xsl:otherwise>
         <p>
-          <xsl:value-of select="$no_human_display"/>
+          <xsl:call-template name="util:getLocalizedString">
+            <xsl:with-param name="key" select="'no_human_display'"/>
+          </xsl:call-template>
         </p>
       </xsl:otherwise>
     </xsl:choose>
@@ -378,7 +357,11 @@
 
     <xsl:choose>
       <xsl:when test="$level &gt; 6">
-        <xsl:message>Warning: Headings exceed 6 levels deep.  Remaining headings converted to simple paragraphs</xsl:message>
+        <xsl:message>
+          <xsl:call-template name="util:getLocalizedString">
+            <xsl:with-param name="key" select="'err-fhir-6'"/>
+          </xsl:call-template>
+        </xsl:message>
         <xsl:text>p</xsl:text>
       </xsl:when>
       <xsl:otherwise>
