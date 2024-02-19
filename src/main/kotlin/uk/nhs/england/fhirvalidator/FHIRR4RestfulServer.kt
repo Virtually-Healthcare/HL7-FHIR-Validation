@@ -39,6 +39,7 @@ class FHIRR4RestfulServer(
     private val namingSystemProvider: NamingSystemProvider,
     private val valueSetProvider: ValueSetProvider,
     private val codeSystemProvider: CodeSystemProvider,
+    private val compostionProvider: CompostionProvider,
     @Qualifier("SupportChain") private val supportChain: IValidationSupport,
     val fhirServerProperties: FHIRServerProperties,
     private val messageProperties: MessageProperties
@@ -62,6 +63,7 @@ class FHIRR4RestfulServer(
         registerProvider(namingSystemProvider)
         registerProvider(valueSetProvider)
         registerProvider(codeSystemProvider)
+        registerProvider(compostionProvider)
 
 
 
