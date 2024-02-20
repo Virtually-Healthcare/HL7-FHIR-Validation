@@ -15,6 +15,9 @@ In root folder
 
 `mvn clean install -P dockerBuild,dockerRelease,awsRelease`
 
+Run 
+
+`mvn spring-boot:run` and check correct app is working on http://localhost:9001
 
 ### Cloud Formation Notes
 
