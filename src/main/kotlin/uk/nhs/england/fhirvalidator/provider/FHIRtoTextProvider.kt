@@ -6,6 +6,8 @@ import ca.uhn.fhir.context.support.ValidationSupportContext
 import ca.uhn.fhir.model.api.IElement
 import ca.uhn.fhir.rest.annotation.Operation
 import ca.uhn.fhir.rest.annotation.ResourceParam
+import jakarta.servlet.http.HttpServletRequest
+import jakarta.servlet.http.HttpServletResponse
 import org.hl7.fhir.common.hapi.validation.support.ValidationSupportChain
 import org.hl7.fhir.instance.model.api.IBaseResource
 import org.hl7.fhir.r4.model.*
@@ -15,8 +17,6 @@ import uk.nhs.england.fhirvalidator.service.CodingSupport
 import java.net.URI
 import java.nio.charset.StandardCharsets
 import java.text.SimpleDateFormat
-import javax.servlet.http.HttpServletRequest
-import javax.servlet.http.HttpServletResponse
 import kotlin.reflect.KClass
 import kotlin.reflect.full.memberProperties
 import kotlin.reflect.jvm.isAccessible

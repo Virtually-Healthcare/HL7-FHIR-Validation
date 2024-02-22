@@ -6,6 +6,7 @@ import ca.uhn.fhir.rest.api.EncodingEnum
 import ca.uhn.fhir.rest.server.RestfulServer
 import com.amazonaws.services.sqs.AmazonSQS
 import com.fasterxml.jackson.databind.ObjectMapper
+import jakarta.servlet.annotation.WebServlet
 import org.hl7.fhir.utilities.npm.NpmPackage
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.beans.factory.annotation.Qualifier
@@ -18,10 +19,12 @@ import uk.nhs.england.fhirvalidator.interceptor.ValidationInterceptor
 import uk.nhs.england.fhirvalidator.model.FHIRPackage
 import uk.nhs.england.fhirvalidator.provider.*
 import java.util.*
-import javax.servlet.annotation.WebServlet
+
+
 
 @ConditionalOnProperty(prefix = "services", name = ["R4"])
-@WebServlet("/FHIR/R4/*", loadOnStartup = 1)
+@WebServlet
+    ("/FHIR/R4/*", loadOnStartup = 1)
 class FHIRR4RestfulServer(
     @Qualifier("R4") fhirContext: FhirContext,
     @Autowired(required = false) val sqs : AmazonSQS?,

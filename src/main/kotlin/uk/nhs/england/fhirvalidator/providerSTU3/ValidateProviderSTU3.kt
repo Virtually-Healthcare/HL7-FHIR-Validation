@@ -18,7 +18,7 @@ import org.hl7.fhir.dstu3.model.ResourceType
 import org.springframework.stereotype.Component
 import uk.nhs.england.fhirvalidator.util.createSTU3OperationOutcome
 import uk.nhs.england.fhirvalidator.util.createSTU3OperationOutcomeR4
-import javax.servlet.http.HttpServletRequest
+import jakarta.servlet.http.HttpServletRequest
 
 @Component
 class ValidateProviderSTU3 (

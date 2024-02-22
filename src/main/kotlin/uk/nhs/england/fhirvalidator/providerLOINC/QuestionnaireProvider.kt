@@ -10,7 +10,7 @@ import org.hl7.fhir.r4.model.*
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.stereotype.Component
 import uk.nhs.england.fhirvalidator.interceptor.BasicAuthInterceptor
-import javax.servlet.http.HttpServletRequest
+import jakarta.servlet.http.HttpServletRequest
 
 @Component
 class QuestionnaireProvider (@Qualifier("R4") private val fhirContext: FhirContext,

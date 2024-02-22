@@ -24,7 +24,7 @@ import uk.nhs.england.fhirvalidator.service.interactions.FHIRRESTful
 import uk.nhs.england.fhirvalidator.util.createOperationOutcome
 import java.net.URLDecoder
 import java.nio.charset.StandardCharsets
-import javax.servlet.http.HttpServletRequest
+import jakarta.servlet.http.HttpServletRequest
 
 @Component
 class ValidateR4Provider (

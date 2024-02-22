@@ -20,7 +20,7 @@ import uk.nhs.england.fhirvalidator.service.CodingSupport
 import uk.nhs.england.fhirvalidator.service.ImplementationGuideParser
 import uk.nhs.england.fhirvalidator.shared.LookupCodeResultUK
 import java.nio.charset.StandardCharsets
-import javax.servlet.http.HttpServletRequest
+import jakarta.servlet.http.HttpServletRequest
 
 @Component
 class CodeSystemProvider (@Qualifier("R4") private val fhirContext: FhirContext,

@@ -33,7 +33,7 @@ import uk.nhs.england.fhirvalidator.util.AccessTokenInterceptor
 import uk.nhs.england.fhirvalidator.util.FhirSystems
 import java.nio.charset.StandardCharsets
 import java.util.*
-import javax.servlet.http.HttpServletRequest
+import jakarta.servlet.http.HttpServletRequest
 
 @Component
 class ValueSetLOINCProvider( @Qualifier("R4") private val fhirContext: FhirContext,

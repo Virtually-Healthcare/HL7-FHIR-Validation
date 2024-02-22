@@ -9,7 +9,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import uk.nhs.england.fhirvalidator.providerSTU3.ConversionProviderSTU3
 import uk.nhs.england.fhirvalidator.providerSTU3.ValidateProviderSTU3
 import java.util.*
-import javax.servlet.annotation.WebServlet
+import jakarta.servlet.annotation.WebServlet
 
 @ConditionalOnProperty(prefix = "services", name = ["STU3"])
 @WebServlet("/FHIR/STU3/*", loadOnStartup = 1)

@@ -5,6 +5,7 @@ import ca.uhn.fhir.rest.api.EncodingEnum
 import ca.uhn.fhir.rest.server.RestfulServer
 import com.amazonaws.services.sqs.AmazonSQS
 import com.fasterxml.jackson.databind.ObjectMapper
+import jakarta.servlet.annotation.WebServlet
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
@@ -16,7 +17,7 @@ import uk.nhs.england.fhirvalidator.providerLOINC.CodeSystemLOINCProvider
 import uk.nhs.england.fhirvalidator.providerLOINC.QuestionnaireProvider
 import uk.nhs.england.fhirvalidator.providerLOINC.ValueSetLOINCProvider
 import java.util.*
-import javax.servlet.annotation.WebServlet
+
 
 @ConditionalOnProperty(prefix = "services", name = ["LOINC"])
 @WebServlet("/LOINC/R4/*", loadOnStartup = 1)

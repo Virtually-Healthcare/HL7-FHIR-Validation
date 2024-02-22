@@ -19,7 +19,7 @@ import org.springframework.stereotype.Component
 import uk.nhs.england.fhirvalidator.service.ImplementationGuideParser
 import java.net.URLDecoder
 import java.nio.charset.StandardCharsets
-import javax.servlet.http.HttpServletRequest
+import jakarta.servlet.http.HttpServletRequest
 
 @Component
 class StructureDefinitionProvider (

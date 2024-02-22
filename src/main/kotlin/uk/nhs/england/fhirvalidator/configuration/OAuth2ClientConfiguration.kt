@@ -21,7 +21,7 @@ open class OAuth2ClientConfiguration(private val terminologyValidationProperties
         return ClientRegistration.withRegistrationId(REGISTRATION_ID)
             .clientId(authorization.clientId)
             .clientSecret(authorization.clientSecret)
-            .clientAuthenticationMethod(ClientAuthenticationMethod.POST)
+            .clientAuthenticationMethod(ClientAuthenticationMethod.CLIENT_SECRET_BASIC)
             .authorizationGrantType(AuthorizationGrantType.CLIENT_CREDENTIALS)
             .tokenUri(authorization.tokenUrl)
             .build()

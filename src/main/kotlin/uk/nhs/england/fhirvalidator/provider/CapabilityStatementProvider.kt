@@ -15,8 +15,8 @@ import org.springframework.stereotype.Component
 import uk.nhs.england.fhirvalidator.service.ImplementationGuideParser
 import uk.nhs.england.fhirvalidator.service.oas.CapabilityStatementToOpenAPIConversion
 import java.nio.charset.StandardCharsets
-import javax.servlet.http.HttpServletRequest
-import javax.servlet.http.HttpServletResponse
+import jakarta.servlet.http.HttpServletRequest
+import jakarta.servlet.http.HttpServletResponse
 
 
 @Component
