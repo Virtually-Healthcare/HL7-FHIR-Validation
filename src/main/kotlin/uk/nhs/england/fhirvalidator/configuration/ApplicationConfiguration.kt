@@ -9,13 +9,15 @@ import com.amazonaws.services.sqs.model.AmazonSQSException
 import com.amazonaws.services.sqs.model.CreateQueueRequest
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Qualifier
-import org.springframework.boot.web.servlet.FilterRegistrationBean
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.web.client.RestTemplate
+import org.springframework.web.cors.CorsConfiguration
+import org.springframework.web.cors.CorsConfigurationSource
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource
 import uk.nhs.england.fhirvalidator.interceptor.BasicAuthInterceptor
 import uk.nhs.england.fhirvalidator.interceptor.CognitoAuthInterceptor
-
+import java.util.*
 
 
 @Configuration
@@ -98,4 +100,8 @@ open class ApplicationConfiguration(
             return null
         }
     }
+
+
+
+
 }
