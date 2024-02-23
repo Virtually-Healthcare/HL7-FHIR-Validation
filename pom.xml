@@ -10,7 +10,7 @@
     </parent>
     <groupId>uk.nhs.england</groupId>
     <artifactId>IOPS-FHIR-Validation-Service</artifactId>
-    <version>7.0.0</version>
+    <version>7.0.1</version>
     <name>IOPS-FHIR-Validation-Service</name>
     <description>HAPI FHIR Validator using Spring Boot</description>
 
