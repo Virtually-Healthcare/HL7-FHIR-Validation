@@ -1,4 +1,4 @@
-package uk.nhs.england.fhirvalidator.service
+package uk.nhs.england.fhirvalidator.service.interactions
 
 import uk.nhs.england.fhirvalidator.util.applyProfile
 import uk.nhs.england.fhirvalidator.util.createOperationOutcome
@@ -8,9 +8,10 @@ import org.hl7.fhir.common.hapi.validation.support.ValidationSupportChain
 import org.hl7.fhir.instance.model.api.IBaseResource
 import org.hl7.fhir.r4.model.*
 import org.springframework.stereotype.Service
+import uk.nhs.england.fhirvalidator.service.ImplementationGuideParser
 
 @Service
-class MessageDefinitionApplier(
+class FHIRMessage(
     implementationGuideParser: ImplementationGuideParser,
     supportChain: ValidationSupportChain
 ) {
@@ -54,11 +55,11 @@ class MessageDefinitionApplier(
         if (messageDefinitionProfile != null) {
             return messageDefinitions
                 ?.filter { it.eventCoding.system == messageType.system }
-                ?.firstOrNull { it.eventCoding.code == messageType.code &&  it.url == messageDefinitionProfile }
+                ?.lastOrNull { it.eventCoding.code == messageType.code &&  it.url == messageDefinitionProfile }
         } else {
             return messageDefinitions
                 ?.filter { it.eventCoding.system == messageType.system }
-                ?.firstOrNull { it.eventCoding.code == messageType.code }
+                ?.lastOrNull { it.eventCoding.code == messageType.code }
         }
     }
 
@@ -87,7 +88,7 @@ class MessageDefinitionApplier(
         matchingResources: List<IBaseResource>
     ) {
         if (focus.hasProfile()) {
-            applyProfile(matchingResources, focus.profileElement)
+            applyProfile(matchingResources, focus.profile)
         }
     }
 

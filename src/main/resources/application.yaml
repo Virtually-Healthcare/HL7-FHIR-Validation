@@ -4,6 +4,9 @@ server:
     threads:
       max: 10
   forward-headers-strategy: native
+  error:
+    whitelabel:
+      enabled=false:
 
 management:
   health:
@@ -15,12 +18,15 @@ management:
 
 fhir:
   server:
-    name: IOPS FHIR Testing
-    baseUrl: https://3cdzg7kbj4.execute-api.eu-west-2.amazonaws.com/poc/Conformance
-    version: 6.8.0
+    name: FHIR Development and Testing (FHIR Validation) Skunkworks
+    baseUrl: http://localhost:9001
+    version: 7.0.3
 
-
-
+services:
+  R4: true
+  STU3: true
+  LOINC: false
+  R4B: false
 
 ###Remote terminology validation:
 

@@ -20,9 +20,9 @@ import uk.nhs.england.fhirvalidator.configuration.FHIRServerProperties
 import uk.nhs.england.fhirvalidator.configuration.MessageProperties
 import java.io.IOException
 import java.util.*
-import javax.servlet.ServletException
-import javax.servlet.http.HttpServletRequest
-import javax.servlet.http.HttpServletResponse
+import jakarta.servlet.ServletException
+import jakarta.servlet.http.HttpServletRequest
+import jakarta.servlet.http.HttpServletResponse
 
 @Interceptor
 class AWSAuditEventLoggingInterceptor(
@@ -83,10 +83,13 @@ class AWSAuditEventLoggingInterceptor(
                         }
                     }
                 } catch (io: InvalidRequestException) {
-                    System.out.println("Issue Processing - " + theRequestDetails.requestPath)
+                    System.out.println("InvalidRequestException Issue Processing - " + theRequestDetails.requestPath)
                 }
                 catch (io: IOException) {
-                    System.out.println("Issue Processing - " + theRequestDetails.requestPath)
+                    System.out.println("IOException Issue Processing - " + theRequestDetails.requestPath)
+                }
+                catch (io: IllegalStateException) {
+                    System.out.println("IllegalStateException Issue Processing - " + theRequestDetails.requestPath)
                 }
             }
         }

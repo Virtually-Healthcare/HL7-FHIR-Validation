@@ -12,13 +12,14 @@ import org.hl7.fhir.r4.model.*
 import org.hl7.fhir.utilities.npm.NpmPackage
 import org.springframework.core.io.ClassPathResource
 import uk.nhs.england.fhirvalidator.configuration.FHIRServerProperties
+import uk.nhs.england.fhirvalidator.model.FHIRPackage
 import uk.nhs.england.fhirvalidator.model.SimplifierPackage
 import uk.nhs.england.fhirvalidator.service.ImplementationGuideParser
 
 @Interceptor
 class CapabilityStatementInterceptor(
     fhirContext: FhirContext,
-    val objectMapper: ObjectMapper,
+    private val fhirPackage: List<FHIRPackage>,
     private val supportChain: IValidationSupport,
     private val fhirServerProperties: FHIRServerProperties
 ) {
@@ -32,34 +33,63 @@ class CapabilityStatementInterceptor(
         val cs: CapabilityStatement = theCapabilityStatement as CapabilityStatement
 
         // Customize the CapabilityStatement as desired
-        val apiextension = Extension();
-        apiextension.url = "https://fhir.nhs.uk/StructureDefinition/Extension-NHSDigital-CapabilityStatement-Package"
-        var manifest : Array<SimplifierPackage>? = null
-        if (fhirServerProperties.ig != null   ) {
-            manifest = arrayOf(SimplifierPackage(fhirServerProperties.ig!!.name, fhirServerProperties.ig!!.version))
-        } else {
-            val configurationInputStream = ClassPathResource("manifest.json").inputStream
-            manifest = objectMapper.readValue(configurationInputStream, Array<SimplifierPackage>::class.java)
-        }
-        if (manifest != null) {
-            manifest.forEach {
-                val packageExtension = Extension();
-                packageExtension.url="FHIRPackage"
-                packageExtension.extension.add(Extension().setUrl("name").setValue(StringType(it.packageName)))
-                packageExtension.extension.add(Extension().setUrl("version").setValue(StringType(it.version)))
-                apiextension.extension.add(packageExtension)
+       // val apiextension = Extension();
+      //  apiextension.url = "https://fhir.nhs.uk/StructureDefinition/Extension-NHSDigital-CapabilityStatement-Package"
+        /*
+         if (enhance && fhirPackage !== null && fhirPackage.size > 0) {
+             var igDescription = "\n\n | FHIR Implementation Guide | Version |\n |-----|-----|\n"
+
+             fhirPackage.forEach {
+                 if (!it.derived) {
+                     val name = it.url
+                     val version = it.version
+                     val pckg = it.name
+                     val url = getDocumentationPath(it.url)
+                     if (name == null) igDescription += " ||$pckg#$version|\n"
+                     else igDescription += " |[$name]($url)|$pckg#$version|\n"
+                 }
+             }
+             openApi.info.description += "\n\n" + igDescription
+         }
+
+          */
+
+
+            fhirPackage.forEach {
+                if (!it.derived) {
+                    var implementationGuide = ImplementationGuide()
+                    implementationGuide.packageId = it.packageName
+                    implementationGuide.version = it.version
+                    implementationGuide.status = Enumerations.PublicationStatus.UNKNOWN
+                    implementationGuide.name = it.packageName
+                    implementationGuide.url = it.canonicalUri
+                    implementationGuide.id = it.packageName
+                    if (it.dependencies !== null) {
+                        for (dependency in it.dependencies) {
+                            implementationGuide.dependsOn.add(
+                                ImplementationGuide.ImplementationGuideDependsOnComponent()
+                                    .setPackageId(dependency.packageName)
+                                    .setVersion(dependency.version)
+                                    .setUri(dependency.canonicalUri)
+                            )
+                        }
+                    }
+                    cs.implementationGuide.add(CanonicalType("#" + it.packageName))
+                    cs.contained.add(implementationGuide)
+                }
             }
-        }
+
+        /*
         val packageExtension = Extension();
         packageExtension.url="openApi"
         packageExtension.extension.add(Extension().setUrl("documentation").setValue(UriType("https://simplifier.net/guide/NHSDigital/Home")))
-        packageExtension.extension.add(Extension().setUrl("description").setValue(StringType("NHS Digital FHIR Implementation Guide")))
+        packageExtension.extension.add(Extension().setUrl("description").setValue(StringType("NHS England FHIR Implementation Guide")))
         apiextension.extension.add(packageExtension)
         cs.extension.add(apiextension)
-
+*/
 
         for (resourceIG in supportChain.fetchAllConformanceResources()?.filterIsInstance<CapabilityStatement>()!!) {
-            if (!resourceIG.url.contains("sdc") && !resourceIG.url.contains("us.core")) {
+            if (resourceIG.url.contains(".uk")) {
                 for (restComponent in resourceIG.rest) {
                     for (component in restComponent.resource) {
 
@@ -70,12 +100,33 @@ class CapabilityStatementInterceptor(
                                 resourceComponent.profile = component.profile
                             } else {
                                 // add this to CapabilityStatement to indicate profile being valiated against
-                                cs.restFirstRep.resource.add(
-                                    CapabilityStatement.CapabilityStatementRestResourceComponent().setType(component.type)
-                                        .setProfile(component.profile)
-                                )
+                                resourceComponent = CapabilityStatement.CapabilityStatementRestResourceComponent().setType(component.type)
+                                    .setProfile(component.profile)
+                                cs.restFirstRep.resource.add(resourceComponent)
                             }
-
+                            if (component.hasExtension()) {
+                                component.extension.forEach{
+                                    if (it.url.equals("http://hl7.org/fhir/StructureDefinition/structuredefinition-imposeProfile")) {
+                                        var found = false
+                                        if (resourceComponent !== null) {
+                                            if (resourceComponent.hasExtension()) {
+                                                for (extension in resourceComponent.extension) {
+                                                    if (extension.url.equals("http://hl7.org/fhir/StructureDefinition/structuredefinition-imposeProfile")) {
+                                                        if (extension.hasValue() && it.hasValue() && it.value is CanonicalType && extension.value is CanonicalType) {
+                                                            if ((extension.value as CanonicalType).value.equals((it.value as CanonicalType).value)) {
+                                                                found = true
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                            if (!found) {
+                                                resourceComponent.extension.add(it)
+                                            }
+                                        }
+                                    }
+                                }
+                            }
                         }
                     }
                 }

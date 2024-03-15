@@ -21,7 +21,7 @@ import java.util.*
 
 @Configuration
 open class PackageConfiguration(
-
+ val terminologyValidationProperties: TerminologyValidationProperties
   ) {
     companion object : KLogging()
 
@@ -29,6 +29,7 @@ open class PackageConfiguration(
 
     @Bean
     open fun getCoreSearchParamters(@Qualifier("R4") ctx: FhirContext) : Bundle? {
+
         // TODO could maybe get this from packages
         val u = URL("http://hl7.org/fhir/R4/search-parameters.json")
         try {

@@ -12,7 +12,7 @@ import uk.nhs.england.fhirvalidator.configuration.*
 
 @SpringBootApplication
 @ServletComponentScan
-@EnableConfigurationProperties(TerminologyValidationProperties::class,FHIRServerProperties::class)
+@EnableConfigurationProperties(TerminologyValidationProperties::class,FHIRServerProperties::class, ServicesProperties::class)
 open class FhirValidatorApplication : ApplicationRunner {
     companion object : KLogging()
 

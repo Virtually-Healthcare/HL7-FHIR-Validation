@@ -3,13 +3,16 @@ package uk.nhs.england.fhirvalidator
 import ca.uhn.fhir.context.FhirContext
 import ca.uhn.fhir.rest.api.EncodingEnum
 import ca.uhn.fhir.rest.server.RestfulServer
+import jakarta.servlet.annotation.WebServlet
 import org.springframework.beans.factory.annotation.Qualifier
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import uk.nhs.england.fhirvalidator.providerR4B.CapabilityStatementInterceptorR4B
 import uk.nhs.england.fhirvalidator.providerR4B.MedicinalProductDefinitionProviderR4B
 import uk.nhs.england.fhirvalidator.providerR4B.PackagedProductDefinitionProviderR4B
 import java.util.*
-import javax.servlet.annotation.WebServlet
 
+
+@ConditionalOnProperty(prefix = "services", name = ["R4B"])
 @WebServlet("/FHIR/R4B/*", loadOnStartup = 1)
 class FHIRR4BRestfulServer(
     @Qualifier("R4B") fhirContext: FhirContext,
