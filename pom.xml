@@ -17,7 +17,7 @@
     <properties>
         <java.version>20</java.version>
         <kotlin.version>1.9.22</kotlin.version>
-        <fhir.version>7.0.0</fhir.version>
+        <fhir.version>7.0.2</fhir.version>
         <swagger_version>2.2.20</swagger_version>
         <parser_version>2.1.20</parser_version>
         <jackson_databind_version>2.16.1</jackson_databind_version>
@@ -40,10 +40,6 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-configuration-processor</artifactId>
             <optional>true</optional>
-        </dependency>
-        <dependency>
-            <groupId>com.fasterxml.jackson.module</groupId>
-            <artifactId>jackson-module-kotlin</artifactId>
         </dependency>
         <dependency>
             <groupId>org.jetbrains.kotlin</groupId>
