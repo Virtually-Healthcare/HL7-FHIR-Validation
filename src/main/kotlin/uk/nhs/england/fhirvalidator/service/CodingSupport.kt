@@ -27,7 +27,6 @@ import kotlin.collections.ArrayList
 
 @Service
 class CodingSupport(@Qualifier("R4") private val ctx: FhirContext?,
-                    private val npmPackages: List<NpmPackage>?,
                     @Qualifier("SupportChain") private val supportChain: IValidationSupport,
                     private val terminologyValidationProperties: TerminologyValidationProperties,
                     optionalAuthorizedClientManager: Optional<OAuth2AuthorizedClientManager>,

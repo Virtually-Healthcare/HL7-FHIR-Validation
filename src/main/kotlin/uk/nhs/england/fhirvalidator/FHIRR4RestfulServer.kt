@@ -6,23 +6,29 @@ import ca.uhn.fhir.rest.api.EncodingEnum
 import ca.uhn.fhir.rest.server.RestfulServer
 import com.amazonaws.services.sqs.AmazonSQS
 import com.fasterxml.jackson.databind.ObjectMapper
+import jakarta.servlet.annotation.WebServlet
 import org.hl7.fhir.utilities.npm.NpmPackage
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.beans.factory.annotation.Qualifier
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import uk.nhs.england.fhirvalidator.configuration.FHIRServerProperties
 import uk.nhs.england.fhirvalidator.configuration.MessageProperties
 import uk.nhs.england.fhirvalidator.interceptor.AWSAuditEventLoggingInterceptor
 import uk.nhs.england.fhirvalidator.interceptor.CapabilityStatementInterceptor
 import uk.nhs.england.fhirvalidator.interceptor.ValidationInterceptor
+import uk.nhs.england.fhirvalidator.model.FHIRPackage
 import uk.nhs.england.fhirvalidator.provider.*
 import java.util.*
-import javax.servlet.annotation.WebServlet
 
-@WebServlet("/FHIR/R4/*", loadOnStartup = 1)
+
+
+@ConditionalOnProperty(prefix = "services", name = ["R4"])
+@WebServlet
+    ("/FHIR/R4/*", loadOnStartup = 1)
 class FHIRR4RestfulServer(
     @Qualifier("R4") fhirContext: FhirContext,
     @Autowired(required = false) val sqs : AmazonSQS?,
-    val objectMapper: ObjectMapper,
+    val fhirPackage: List<FHIRPackage>,
     private val validateR4Provider: ValidateR4Provider,
     private val openAPIProvider: OpenAPIProvider,
     private val markdownProvider: MarkdownProvider,
@@ -36,8 +42,7 @@ class FHIRR4RestfulServer(
     private val namingSystemProvider: NamingSystemProvider,
     private val valueSetProvider: ValueSetProvider,
     private val codeSystemProvider: CodeSystemProvider,
-
-    private val npmPackages: List<NpmPackage>,
+    private val compostionProvider: CompostionProvider,
     @Qualifier("SupportChain") private val supportChain: IValidationSupport,
     val fhirServerProperties: FHIRServerProperties,
     private val messageProperties: MessageProperties
@@ -61,10 +66,11 @@ class FHIRR4RestfulServer(
         registerProvider(namingSystemProvider)
         registerProvider(valueSetProvider)
         registerProvider(codeSystemProvider)
+        registerProvider(compostionProvider)
 
 
 
-        registerInterceptor(CapabilityStatementInterceptor(this.fhirContext, objectMapper, supportChain, fhirServerProperties))
+        registerInterceptor(CapabilityStatementInterceptor(this.fhirContext, fhirPackage, supportChain, fhirServerProperties))
 
 
         val awsAuditEventLoggingInterceptor =

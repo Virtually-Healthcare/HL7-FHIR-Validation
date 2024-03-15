@@ -34,6 +34,7 @@ open class MessageProperties {
     val AWS_QUEUE_ENABLED = "aws.queueEnabled"
     val AWS_VALIDATION_SUPPORT = "aws.validationSupport"
     val CDR_FHIR_SERVER = "cdr.fhirServer"
+    val LOINC_FHIR_SERVER = "loinc.fhirServer"
     val NPM_FHIR_SERVER = "npm.fhirServer"
     val VALIDATION_FHIR_SERVER = "validation.fhirServer"
 
@@ -133,10 +134,6 @@ open class MessageProperties {
         } else value.toInt()
     }
 
-    private fun <T : Enum<*>?> getPropertyEnum(thePropertyName: String, theEnumType: Class<T>, theDefaultValue: T): T {
-        val value = getProperty(thePropertyName, theDefaultValue!!.name)
-        return java.lang.Enum.valueOf(theEnumType, value) as T
-    }
 
 
     fun getEmailEnabled(): Boolean? {
@@ -240,6 +237,9 @@ open class MessageProperties {
 
     fun getCdrFhirServer(): String? {
         return getProperty(CDR_FHIR_SERVER)
+    }
+    fun getLOINCFhirServer(): String? {
+        return getProperty(LOINC_FHIR_SERVER)
     }
     fun getNPMFhirServer(): String? {
         return getProperty(NPM_FHIR_SERVER)
