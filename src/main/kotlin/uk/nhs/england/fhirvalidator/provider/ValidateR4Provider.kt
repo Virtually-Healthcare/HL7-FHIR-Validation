@@ -13,23 +13,28 @@ import mu.KLogging
 import org.hl7.fhir.instance.model.api.IBaseResource
 import org.hl7.fhir.r4.hapi.ctx.HapiWorkerContext
 import org.hl7.fhir.r4.model.*
+import org.hl7.fhir.r4.model.OperationOutcome.OperationOutcomeIssueComponent
 import org.hl7.fhir.r4.utils.FHIRPathEngine
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.stereotype.Component
-import uk.nhs.england.fhirvalidator.service.CapabilityStatementApplier
-import uk.nhs.england.fhirvalidator.service.MessageDefinitionApplier
+import uk.nhs.england.fhirvalidator.interceptor.CapabilityStatementApplier
+import uk.nhs.england.fhirvalidator.service.interactions.FHIRDocument
+import uk.nhs.england.fhirvalidator.service.interactions.FHIRMessage
+import uk.nhs.england.fhirvalidator.service.interactions.FHIRRESTful
 import uk.nhs.england.fhirvalidator.util.createOperationOutcome
 import java.net.URLDecoder
 import java.nio.charset.StandardCharsets
-import javax.servlet.http.HttpServletRequest
+import jakarta.servlet.http.HttpServletRequest
 
 @Component
 class ValidateR4Provider (
     @Qualifier("R4") private val fhirContext: FhirContext,
     @Qualifier("SupportChain") private val supportChain: IValidationSupport,
     private val validator: FhirValidator,
-    private val messageDefinitionApplier: MessageDefinitionApplier,
-    private val capabilityStatementApplier: CapabilityStatementApplier
+    private val fhirMessage: FHIRMessage,
+    private val capabilityStatementApplier: CapabilityStatementApplier,
+    private val fhirDocumentApplier: FHIRDocument,
+    private val fhirRESTful: FHIRRESTful
 
 ) {
     companion object : KLogging()
@@ -98,15 +103,18 @@ class ValidateR4Provider (
         @Validate.Profile parameterResourceProfile: String?
     ): MethodOutcome {
         var profile = parameterResourceProfile ?: servletRequest.getParameter("profile")
+        var importProfileParam = parameterResourceProfile ?: servletRequest.getParameter("imposeProfile")
+        var importProfile = false
+        if (importProfileParam !== null && importProfileParam.equals("true")) importProfile = true
         if (profile!= null) profile = URLDecoder.decode(profile, StandardCharsets.UTF_8.name());
         var operationOutcome : OperationOutcome? = null
         if (resource == null && theRequestDetails.resource == null) throw UnprocessableEntityException("Not resource supplied to validation")
         if (resource == null) {
             // This should cope with Parameters resources being passed in
-            operationOutcome = parseAndValidateResource(theRequestDetails.resource, profile)
+            operationOutcome = parseAndValidateResource(theRequestDetails.resource, profile, importProfile)
 
         } else {
-            operationOutcome = parseAndValidateResource(resource, profile)
+            operationOutcome = parseAndValidateResource(resource, profile, importProfile)
         }
         val methodOutcome = MethodOutcome()
         if (operationOutcome != null ) {
@@ -118,6 +126,19 @@ class ValidateR4Provider (
                             issue.diagnostics.contains("https://fhir.nhs.uk/CodeSystem/NHSDataModelAndDictionary-treatment-function")) {
                             issue.severity = OperationOutcome.IssueSeverity.INFORMATION
                         }
+                        // This is to downgrade onto server issues to information.
+                        if (!issue.diagnostics.contains(".uk") && (issue.diagnostics.contains("A usable code system with URL")
+                            || issue.diagnostics.contains("LOINC is not indexed!"))) {
+                            // This is probably ontology server issue so degrade warning to information
+                            issue.severity = OperationOutcome.IssueSeverity.INFORMATION
+                        }
+
+                    }
+                    if (issue.diagnostics.contains("http://unstats.un.org/unsd/")) {
+                        issue.severity = OperationOutcome.IssueSeverity.INFORMATION
+                    }
+                    if (issue.diagnostics.contains("note that the validator cannot judge what is suitable")) {
+                        issue.severity = OperationOutcome.IssueSeverity.INFORMATION
                     }
                 }
             } else {
@@ -144,10 +165,10 @@ class ValidateR4Provider (
 
      */
 
-    fun parseAndValidateResource(inputResource: IBaseResource, profile: String?): OperationOutcome {
+    fun parseAndValidateResource(inputResource: IBaseResource, profile: String?, importProfile: Boolean?): OperationOutcome {
         return try {
             val resources = getResourcesToValidate(inputResource)
-            val operationOutcomeList = resources.map { validateResource(it, profile) }
+            val operationOutcomeList = resources.map { validateResource(it, profile, importProfile) }
             val operationOutcomeIssues = operationOutcomeList.filterNotNull().flatMap { it.issue }
             return createOperationOutcome(operationOutcomeIssues)
         } catch (e: DataFormatException) {
@@ -156,15 +177,48 @@ class ValidateR4Provider (
         }
     }
 
-    fun validateResource(resource: IBaseResource, profile: String?): OperationOutcome? {
-        if (profile != null) return validator.validateWithResult(resource, ValidationOptions().addProfile(profile))
-            .toOperationOutcome() as? OperationOutcome
-        capabilityStatementApplier.applyCapabilityStatementProfiles(resource)
-        val messageDefinitionErrors = messageDefinitionApplier.applyMessageDefinition(resource)
-        if (messageDefinitionErrors != null) {
-            return messageDefinitionErrors
+    fun validateResource(resource: IBaseResource, profile: String?,  importProfile: Boolean?): OperationOutcome? {
+        var additionalIssues = ArrayList<OperationOutcomeIssueComponent>()
+        if (resource is Resource) {
+            if (resource.hasMeta() && resource.meta.hasProfile()) {
+                additionalIssues.add(OperationOutcome.OperationOutcomeIssueComponent()
+                    .setSeverity(OperationOutcome.IssueSeverity.INFORMATION)
+                    .setCode(OperationOutcome.IssueType.INFORMATIONAL)
+                    .setDiagnostics("UK Core advice - population of meta.profile claims is not required for resource instances.")
+                )
+            }
         }
-        return validator.validateWithResult(resource).toOperationOutcome() as? OperationOutcome
+        var result : OperationOutcome? = null
+        if (resource is CapabilityStatement) {
+            val errors = fhirRESTful.test(resource)
+            if (errors != null) {
+                errors.forEach {
+                    additionalIssues.add(it)
+                }
+            }
+        }
+        if (profile != null) {
+            if (importProfile !== null && importProfile) capabilityStatementApplier.applyCapabilityStatementProfiles(resource, importProfile)
+            if (importProfile !== null && importProfile && resource is Bundle) fhirDocumentApplier.applyDocumentDefinition(resource)
+            result = validator.validateWithResult(resource, ValidationOptions().addProfile(profile))
+                .toOperationOutcome() as? OperationOutcome
+        } else {
+            capabilityStatementApplier.applyCapabilityStatementProfiles(resource, importProfile)
+            val messageDefinitionErrors = fhirMessage.applyMessageDefinition(resource)
+            if (messageDefinitionErrors != null) {
+                messageDefinitionErrors.issue.forEach{
+                    additionalIssues.add(it)
+                }
+            }
+            if (importProfile !== null && importProfile && resource is Bundle) fhirDocumentApplier.applyDocumentDefinition(resource)
+            result = validator.validateWithResult(fhirContext.newJsonParser().setPrettyPrint(true).encodeResourceToString(resource)).toOperationOutcome() as? OperationOutcome
+        }
+        if (result !== null) {
+            additionalIssues.forEach{
+                result.issue.add(it)
+            }
+        }
+        return result
     }
 
     fun getResourcesToValidate(inputResource: IBaseResource?): List<IBaseResource> {

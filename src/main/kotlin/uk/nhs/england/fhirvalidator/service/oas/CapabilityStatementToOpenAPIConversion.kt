@@ -1,4 +1,4 @@
-package uk.nhs.england.fhirvalidator.service
+package uk.nhs.england.fhirvalidator.service.oas
 
 import ca.uhn.fhir.context.FhirContext
 import ca.uhn.fhir.context.support.IValidationSupport
@@ -6,6 +6,7 @@ import ca.uhn.fhir.context.support.ValidationSupportContext
 import ca.uhn.fhir.context.support.ValueSetExpansionOptions
 import ca.uhn.fhir.rest.api.Constants
 import ca.uhn.fhir.util.HapiExtensions
+import com.fasterxml.jackson.databind.ObjectMapper
 import io.swagger.v3.oas.models.*
 import io.swagger.v3.oas.models.examples.Example
 import io.swagger.v3.oas.models.info.Contact
@@ -18,14 +19,22 @@ import io.swagger.v3.oas.models.responses.ApiResponses
 import io.swagger.v3.oas.models.servers.Server
 import io.swagger.v3.oas.models.tags.Tag
 import org.apache.commons.lang3.StringUtils
+import org.apache.commons.text.StringEscapeUtils
 import org.hl7.fhir.instance.model.api.IBaseResource
 import org.hl7.fhir.instance.model.api.IPrimitiveType
 import org.hl7.fhir.r4.model.*
-import org.hl7.fhir.utilities.npm.NpmPackage
 import org.json.JSONArray
 import org.json.JSONObject
 import org.springframework.beans.factory.annotation.Qualifier
+import org.springframework.core.Ordered
+import org.springframework.core.annotation.Order
+import org.springframework.core.io.ClassPathResource
 import org.springframework.stereotype.Service
+import uk.nhs.england.fhirvalidator.interceptor.CapabilityStatementApplier
+import uk.nhs.england.fhirvalidator.model.FHIRPackage
+import uk.nhs.england.fhirvalidator.model.SimplifierPackage
+import uk.nhs.england.fhirvalidator.service.ImplementationGuideParser
+import uk.nhs.england.fhirvalidator.service.SearchParameterSupport
 import java.math.BigDecimal
 import java.net.URI
 import java.util.concurrent.atomic.AtomicReference
@@ -33,10 +42,13 @@ import java.util.function.Supplier
 import java.util.stream.Collectors
 
 @Service
-class OpenAPIParser(@Qualifier("R4") private val ctx: FhirContext,
-                    private val npmPackages: List<NpmPackage>?,
-                    @Qualifier("SupportChain") private val supportChain: IValidationSupport,
-                    private val searchParameterSupport : SearchParameterSupport) {
+@Order(Ordered.LOWEST_PRECEDENCE)
+class CapabilityStatementToOpenAPIConversion(@Qualifier("R4") private val ctx: FhirContext,
+                                             private val fhirPackage:  List<FHIRPackage>,
+                                             @Qualifier("SupportChain") private val supportChain: IValidationSupport,
+                                             private val searchParameterSupport : SearchParameterSupport,
+                private val capabilityStatementApplier: CapabilityStatementApplier
+) {
 
 
     val PAGE_SYSTEM = "System Level Operations"
@@ -52,65 +64,56 @@ class OpenAPIParser(@Qualifier("R4") private val ctx: FhirContext,
 
 
 
-    fun generateOpenApi(_cs: CapabilityStatement): OpenAPI? {
+    fun generateOpenApi(_cs: CapabilityStatement, enhance: Boolean): OpenAPI? {
         cs = _cs
         val openApi = OpenAPI()
         openApi.info = Info()
-        openApi.info.description = cs.description
+        openApi.info.description = unescapeMarkdown(cs.description)
         if (openApi.info.description == null) openApi.info.description = ""
-        openApi.info.title = cs.software.name
+        if (cs.hasTitle()) openApi.info.title = cs.title
         openApi.info.version = cs.software.version
-        openApi.info.contact = Contact()
-        openApi.info.contact.name = cs.contactFirstRep.name
-        openApi.info.contact.email = cs.contactFirstRep.telecomFirstRep.value
+        if (cs.hasContact()) {
+            openApi.info.contact = Contact()
+            for (contact in cs.contact){
+                if (cs.hasName()) openApi.info.contact.name = contact.name
+                if (contact.hasTelecom()) {
+                    for (telecom in contact.telecom) {
+                        if (telecom.hasSystem() && telecom.system.equals(ContactPoint.ContactPointSystem.EMAIL)) {
+                            openApi.info.contact.email = telecom.value
+                        }
+                        if (telecom.hasSystem() && telecom.system.equals(ContactPoint.ContactPointSystem.URL)) {
+                            openApi.info.contact.url = telecom.value
+                        }
+                    }
+                }
+            }
+        }
 
         for (code in cs.format) {
             if (code.value.contains("xml")) generateXML = true
         }
+        /*
+        if (enhance && fhirPackage !== null && fhirPackage.size > 0) {
+            var igDescription = "\n\n | FHIR Implementation Guide | Version |\n |-----|-----|\n"
 
-        if (cs.hasExtension("https://fhir.nhs.uk/StructureDefinition/Extension-NHSDigital-CapabilityStatement-Package")) {
-            val apiDefinition = cs.getExtensionByUrl("https://fhir.nhs.uk/StructureDefinition/Extension-NHSDigital-CapabilityStatement-Package")
-            // Sample table:\n\n| One | Two | Three |\n|-----|-----|-------|\n| a   | b   | c     |
-            if (apiDefinition.hasExtension("openApi")) {
-                var docDescription = "\n\n | API Documentation |\n |-----|\n "
-                apiDefinition.extension.forEach{
-                    if (it.url.equals("openApi")) {
-                        docDescription += " |["+(it.getExtensionByUrl("description").value as StringType).value+"]("+(it.getExtensionByUrl("documentation").value as UriType).value+")|\n"
-                    }
+            fhirPackage.forEach {
+                if (!it.derived) {
+                    val name = it.url
+                    val version = it.version
+                    val pckg = it.name
+                    val url = getDocumentationPath(it.url)
+                    if (name == null) igDescription += " ||$pckg#$version|\n"
+                    else igDescription += " |[$name]($url)|$pckg#$version|\n"
                 }
-                openApi.info.description += docDescription
             }
-            openApi.info.extensions = mutableMapOf<String,Any>()
-            val igs =  mutableMapOf<String,Any>()
-            if (apiDefinition.hasExtension("FHIRPackage")) {
-                var igDescription = "\n\n | FHIR Implementation Guide | Version |\n |-----|-----|\n"
-                apiDefinition.extension.forEach{
-
-                    if (it.url.equals("FHIRPackage")) {
-
-                        val name = it.getExtensionByUrl("name").value as StringType
-                        var url = "https://simplifier.net/guide/NHSDigital/Home"
-                        var version = ""
-                        if (it.hasExtension("version")) {
-                            version = (it.getExtensionByUrl("version").value as StringType).value
-                            igs[(it.getExtensionByUrl("name").value as StringType).value] = (it.getExtensionByUrl("version").value as StringType).value
-                        } else {
-                            igs[(it.getExtensionByUrl("name").value as StringType).value] = ""
-                        }
-                        if (name.value.startsWith("uk.nhsdigital.medicines")) url = "https://simplifier.net/guide/nhsdigital-medicines/home"
-                        if (name.value.startsWith("ukcore.")) url = "https://simplifier.net/guide/hl7fhirukcorer4release1/home"
-                        igDescription += " |[$name]($url)|$version|\n"
-
-                    }
-                }
-                openApi.info.description += igDescription
-            }
-            openApi.info.extensions["x-HL7-FHIR-NpmPackages"] = igs
-
+            openApi.info.description += "\n\n" + igDescription
         }
+
+         */
+
         openApi.externalDocs = ExternalDocumentation()
-        openApi.externalDocs.description = "Hl7 FHIR R4"
-        openApi.externalDocs.url = "https://www.hl7.org/fhir/"
+        if (cs.hasTitle()) openApi.externalDocs.description = cs.title
+        if (cs.hasUrl()) openApi.externalDocs.url = getDocumentationPath(cs.url)
         val server = Server()
         openApi.addServersItem(server)
         server.url = cs.implementation.url
@@ -122,10 +125,18 @@ class OpenAPIParser(@Qualifier("R4") private val ctx: FhirContext,
         serverTag.name = PAGE_SYSTEM
         serverTag.description = "Server-level operations"
         openApi.addTagsItem(serverTag)
+
+
         val capabilitiesOperation = getPathItem(paths, "/metadata", PathItem.HttpMethod.GET)
         capabilitiesOperation.addTagsItem(PAGE_SYSTEM)
-        capabilitiesOperation.summary = "server-capabilities: Fetch the server FHIR CapabilityStatement"
-        addFhirResourceResponse(this.ctx, openApi, capabilitiesOperation, "CapabilityStatement",null,null,null)
+        if (enhance) {
+            capabilitiesOperation.externalDocs = ExternalDocumentation()
+            capabilitiesOperation.externalDocs.url = "https://hl7.org/fhir/R4/http.html#capabilities"
+            capabilitiesOperation.externalDocs.description = "FHIR RESTful API - capabilities"
+        }
+        addFhirResourceResponse(this.ctx, openApi, capabilitiesOperation, "CapabilityStatement",null,null,null, enhance)
+
+
         val systemInteractions =
             cs.restFirstRep.interaction.stream().map { t: CapabilityStatement.SystemInteractionComponent -> t.code }
                 .collect(Collectors.toSet())
@@ -138,23 +149,30 @@ class OpenAPIParser(@Qualifier("R4") private val ctx: FhirContext,
         ) {
             val transaction = getPathItem(paths, "/", PathItem.HttpMethod.POST)
             transaction.addTagsItem(PAGE_SYSTEM)
-            transaction.summary = "server-transaction: Execute a FHIR Transaction (or FHIR Batch) Bundle"
-            addFhirResourceResponse(ctx, openApi, transaction, null, null,null,null)
-            addFhirResourceRequestBody(openApi, transaction, emptyList(), "Bundle",null)
+            if (enhance) {
+                transaction.externalDocs = ExternalDocumentation()
+                transaction.externalDocs.url = "https://hl7.org/fhir/R4/http.html#transaction"
+                transaction.externalDocs.description = "FHIR RESTful API - transaction"
+            }
+            addFhirResourceResponse(ctx, openApi, transaction, null, null,null,null, enhance)
+            addFhirResourceRequestBody(openApi, transaction, emptyList(), "Bundle",null, enhance)
         }
 
         // System History Operation
         if (systemInteractions.contains(CapabilityStatement.SystemRestfulInteraction.HISTORYSYSTEM)) {
             val systemHistory = getPathItem(paths, "/_history", PathItem.HttpMethod.GET)
             systemHistory.addTagsItem(PAGE_SYSTEM)
-            systemHistory.summary =
-                "server-history: Fetch the resource change history across all resource types on the server"
-            addFhirResourceResponse(ctx, openApi, systemHistory, null, null,null,null)
+            if (enhance) {
+                systemHistory.externalDocs = ExternalDocumentation()
+                systemHistory.externalDocs.url = "https://hl7.org/fhir/R4/http.html#history"
+                systemHistory.externalDocs.description = "FHIR RESTful API - history"
+            }
+            addFhirResourceResponse(ctx, openApi, systemHistory, null, null,null,null, enhance)
         }
 
         // System-level Operations
         for (nextOperation in cs.restFirstRep.operation) {
-            addFhirOperation(ctx, openApi, paths, null, nextOperation)
+            addFhirOperation(ctx, openApi, paths, null, nextOperation, enhance)
         }
 
 
@@ -167,7 +185,7 @@ class OpenAPIParser(@Qualifier("R4") private val ctx: FhirContext,
                     t.codeElement.value
                 }.collect(Collectors.toSet())
 
-            addResoureTag(openApi,resourceType,nextResource.profile)
+            addResoureTag(openApi,resourceType,nextResource.profile, enhance, nextResource.documentation)
 
             for (resftfulIntraction in nextResource.interaction) {
                 val requestExample = getRequestExample(resftfulIntraction)
@@ -177,124 +195,197 @@ class OpenAPIParser(@Qualifier("R4") private val ctx: FhirContext,
                     CapabilityStatement.TypeRestfulInteraction.SEARCHTYPE -> {
                         val operation = getPathItem(paths, "/$resourceType", PathItem.HttpMethod.GET)
                         operation.addTagsItem(resourceType)
-                        operation.summary = resftfulIntraction.code.display
-                        operation.description = "[search](http://www.hl7.org/fhir/search.html) for $resourceType instances."
-                        if (resftfulIntraction.hasDocumentation()) {
-                            operation.description += "\n\n"+ resftfulIntraction.documentation
+                        if (enhance) {
+                            operation.externalDocs = ExternalDocumentation()
+                            operation.externalDocs.description("FHIR RESTful API - search")
+                            operation.externalDocs.url("https://hl7.org/fhir/R4/http.html#search")
                         }
-                        if (nextResource.hasExtension("http://hl7.org/fhir/StructureDefinition/capabilitystatement-search-parameter-combination")) {
-                            var comboDoc = "\n\n **Required Parameters** \n\n One of the following search paramter combinations is **required** \n\n" +
-                                    "| Required | Optional | \n"
+                        if (resftfulIntraction.hasDocumentation()) {
+                            operation.description = unescapeMarkdown(resftfulIntraction.documentation)
+                        }
+                        if (enhance && resftfulIntraction.hasExtension("http://hl7.org/fhir/StructureDefinition/capabilitystatement-expectation")) {
+                            if (operation.description == null) operation.description = ""
+                            for (required in resftfulIntraction.getExtensionsByUrl("http://hl7.org/fhir/StructureDefinition/capabilitystatement-expectation")) {
+                                operation.description += "\n\n Query Conformance Expectation: **" + (required.value as CodeType).value  + "** be supported."
+                            }
+                        }
+                        if (enhance && nextResource.hasExtension("http://hl7.org/fhir/StructureDefinition/capabilitystatement-search-parameter-combination")) {
+                            var comboDoc = "\n\n **Search Parameter Combination Conformance** \n\n " +
+                                    "| Conformance Expectation | Parameter Combination | \n"
                             comboDoc += "|----------|---------| \n"
 
                             for (extension in nextResource.getExtensionsByUrl("http://hl7.org/fhir/StructureDefinition/capabilitystatement-search-parameter-combination")) {
-                                var requiredDoc = ""
-                                var optionalDoc = ""
+                                var conformance = ""
+                                var combination = ""
+                                if (extension.hasExtension("http://hl7.org/fhir/StructureDefinition/capabilitystatement-expectation")) {
+                                    for (required in extension.getExtensionsByUrl("http://hl7.org/fhir/StructureDefinition/capabilitystatement-expectation")) {
+                                        conformance = "**" + (required.value as CodeType).value  + "**"
+                                    }
+                                }
                                 if (extension.hasExtension("required")) {
                                     for (required in extension.getExtensionsByUrl("required")) {
-                                        if (requiredDoc != "") requiredDoc += "+"
-                                        requiredDoc += (required.value as StringType).value
+                                        if (combination != "") combination += " + "
+                                        val name = (required.value as StringType).value
+                                        combination += "[$name](https://www.hl7.org/fhir/R4/$resourceType.html#search)"
+
                                     }
                                 }
                                 if (extension.hasExtension("optional")) {
                                     for (optional in extension.getExtensionsByUrl("optional")) {
-                                        optionalDoc += (optional.value as StringType).value + "<br/>"
+                                        if (combination != "") combination += " + "
+                                        val name = (optional.value as StringType).value
+                                        combination += "[$name](https://www.hl7.org/fhir/R4/$resourceType.html#search) *optional*"
                                     }
                                 }
-                                comboDoc += "| $requiredDoc| $optionalDoc | \n"
+                                comboDoc += "| $conformance| $combination | \n"
                             }
+                            if (operation.description == null) operation.description = ""
                             operation.description += comboDoc
                         }
-                        addFhirResourceResponse(ctx, openApi, operation, resourceType,resftfulIntraction, null,null)
-                        processSearchParameter(operation,nextResource,resourceType)
+                        addFhirResourceResponse(ctx, openApi, operation, resourceType,resftfulIntraction, null,null, enhance)
+                        processSearchParameter(operation,nextResource,resourceType, enhance)
                         addResourceAPIMParameter(operation)
                     }
                     // Instance Read
                     CapabilityStatement.TypeRestfulInteraction.READ -> {
                         val operation = getPathItem(paths, "/$resourceType/{id}", PathItem.HttpMethod.GET)
                         operation.addTagsItem(resourceType)
-                        operation.summary = resftfulIntraction.code.display
-                        operation.description = "[read](http://www.hl7.org/fhir/http.html#read) $resourceType instance."
+
+                        if (enhance) {
+                            operation.externalDocs = ExternalDocumentation()
+                            operation.externalDocs.description("FHIR RESTful API - read")
+                            operation.externalDocs.url("https://hl7.org/fhir/R4/http.html#read")
+                        }
 
                         if (resftfulIntraction.hasDocumentation()) {
-                            operation.description += "\n\n"+resftfulIntraction.documentation
+                            operation.description = resftfulIntraction.documentation
+                        }
+                        if (enhance && resftfulIntraction.hasExtension("http://hl7.org/fhir/StructureDefinition/capabilitystatement-expectation")) {
+                            if (operation.description == null) operation.description = ""
+                            for (required in resftfulIntraction.getExtensionsByUrl("http://hl7.org/fhir/StructureDefinition/capabilitystatement-expectation")) {
+                                operation.description += "\n\n Query Conformance Expectation: **" + (required.value as CodeType).value  + "** be supported."
+                            }
                         }
                         addResourceIdParameter(operation)
                         addResourceAPIMParameter(operation)
-                        addFhirResourceResponse(ctx, openApi, operation,resourceType,resftfulIntraction,null,null)
+                        addFhirResourceResponse(ctx, openApi, operation,resourceType,resftfulIntraction,null,null, enhance)
                     }
                     // Instance Update
                     CapabilityStatement.TypeRestfulInteraction.UPDATE -> {
                         val operation = getPathItem(paths, "/$resourceType/{id}", PathItem.HttpMethod.PUT)
                         operation.addTagsItem(resourceType)
-                        operation.summary = resftfulIntraction.code.display
-                        operation.description =
-                            "[update](http://www.hl7.org/fhir/http.html#update) an existing $resourceType instance, or create using a client-assigned ID."
-                        if (resftfulIntraction.hasDocumentation()) {
-                            operation.description += "\n\n"+ resftfulIntraction.documentation
+                        if (enhance) {
+                            operation.externalDocs = ExternalDocumentation()
+                            operation.externalDocs.description("FHIR RESTful API - update")
+                            operation.externalDocs.url("https://hl7.org/fhir/R4/http.html#update")
+                        }
+                       if (resftfulIntraction.hasDocumentation()) {
+                            operation.description = resftfulIntraction.documentation
+                        }
+                        if (enhance && resftfulIntraction.hasExtension("http://hl7.org/fhir/StructureDefinition/capabilitystatement-expectation")) {
+                            if (operation.description == null) operation.description = ""
+                            for (required in resftfulIntraction.getExtensionsByUrl("http://hl7.org/fhir/StructureDefinition/capabilitystatement-expectation")) {
+                                operation.description += "\n\n Query Conformance Expectation: **" + (required.value as CodeType).value  + "** be supported."
+                            }
                         }
                         addResourceIdParameter(operation)
                         addResourceAPIMParameter(operation)
-                        addFhirResourceRequestBody(openApi, operation,  requestExample, resourceType,nextResource.profile)
-                        addFhirResourceResponse(ctx, openApi, operation, "OperationOutcome",resftfulIntraction,null,null)
+                        addFhirResourceRequestBody(openApi, operation,  requestExample, resourceType,nextResource.profile, enhance)
+                        addFhirResourceResponse(ctx, openApi, operation, "OperationOutcome",resftfulIntraction,null,null, enhance)
                     }
                     // Type Create
                     CapabilityStatement.TypeRestfulInteraction.CREATE -> {
                         val operation = getPathItem(paths, "/$resourceType", PathItem.HttpMethod.POST)
                         operation.addTagsItem(resourceType)
-                        operation.summary = resftfulIntraction.code.display
-                        operation.description = "[create](http://www.hl7.org/fhir/http.html#create) a new $resourceType instance."
+
+                        if (enhance) {
+                            operation.externalDocs = ExternalDocumentation()
+                            operation.externalDocs.description("FHIR RESTful API - create")
+                            operation.externalDocs.url("https://hl7.org/fhir/R4/http.html#create")
+                        }
                         if (resftfulIntraction.hasDocumentation()) {
-                            operation.description += "\n\n"+resftfulIntraction.documentation
+                            operation.description = resftfulIntraction.documentation
+                        }
+                        if (enhance && resftfulIntraction.hasExtension("http://hl7.org/fhir/StructureDefinition/capabilitystatement-expectation")) {
+                            if (operation.description == null) operation.description = ""
+                            for (required in resftfulIntraction.getExtensionsByUrl("http://hl7.org/fhir/StructureDefinition/capabilitystatement-expectation")) {
+                                operation.description += "\n\n Query Conformance Expectation: **" + (required.value as CodeType).value   + "** be supported."
+                            }
                         }
                         addResourceAPIMParameter(operation)
-                        addFhirResourceRequestBody(openApi, operation, requestExample, resourceType, nextResource.profile)
-                        addFhirResourceResponse(ctx, openApi, operation, "OperationOutcome",resftfulIntraction,null,null)
+                        addFhirResourceRequestBody(openApi, operation, requestExample, resourceType, nextResource.profile, enhance)
+                        addFhirResourceResponse(ctx, openApi, operation, "OperationOutcome",resftfulIntraction,null,null, enhance)
                     }
                     // Instance Patch
                     CapabilityStatement.TypeRestfulInteraction.PATCH -> {
                         val operation = getPathItem(paths, "/$resourceType/{id}", PathItem.HttpMethod.PATCH)
                         operation.addTagsItem(resourceType)
-                        operation.summary = resftfulIntraction.code.display
-                        operation.description = "[patch](http://www.hl7.org/fhir/http.html#patch) a resource instance of type $resourceType by ID."
 
+                        if (enhance) {
+                            operation.externalDocs = ExternalDocumentation()
+                            operation.externalDocs.description("FHIR RESTful API - patch")
+                            operation.externalDocs.url("https://hl7.org/fhir/R4/http.html#patch")
+                        }
                         if (resftfulIntraction.hasDocumentation()) {
-                            operation.description += "\n\n"+resftfulIntraction.documentation
+                            operation.description = resftfulIntraction.documentation
+                        }
+                        if (enhance && resftfulIntraction.hasExtension("http://hl7.org/fhir/StructureDefinition/capabilitystatement-expectation")) {
+                            if (operation.description == null) operation.description = ""
+                            for (required in resftfulIntraction.getExtensionsByUrl("http://hl7.org/fhir/StructureDefinition/capabilitystatement-expectation")) {
+                                operation.description += "\n\n Query Conformance Expectation: **" + (required.value as CodeType).value   + "** be supported."
+                            }
                         }
                         addResourceIdParameter(operation)
                         addResourceAPIMParameter(operation)
                         addJSONSchema(openApi)
                         addPatchResourceRequestBody(operation, patchExampleSupplier(resourceType))
-                        addFhirResourceResponse(ctx, openApi, operation, "OperationOutcome",resftfulIntraction,null,null)
+                        addFhirResourceResponse(ctx, openApi, operation, "OperationOutcome",resftfulIntraction,null,null, enhance)
                     }
 
                         // Instance Delete
                         CapabilityStatement.TypeRestfulInteraction.DELETE -> {
                         val operation = getPathItem(paths, "/$resourceType/{id}", PathItem.HttpMethod.DELETE)
                         operation.addTagsItem(resourceType)
-                            operation.summary = resftfulIntraction.code.display
-                            operation.description = "Perform a logical [delete](http://www.hl7.org/fhir/http.html#delete) on a resource instance."
 
+                            if (enhance) {
+                                operation.externalDocs = ExternalDocumentation()
+                                operation.externalDocs.description("FHIR RESTful API - delete")
+                                operation.externalDocs.url("https://hl7.org/fhir/R4/http.html#delete")
+                            }
                         if (resftfulIntraction.hasDocumentation()) {
-                            operation.description += "\n\n"+resftfulIntraction.documentation
+                            operation.description = resftfulIntraction.documentation
                         }
+                            if (enhance && resftfulIntraction.hasExtension("http://hl7.org/fhir/StructureDefinition/capabilitystatement-expectation")) {
+                                if (operation.description == null) operation.description = ""
+                                for (required in resftfulIntraction.getExtensionsByUrl("http://hl7.org/fhir/StructureDefinition/capabilitystatement-expectation")) {
+                                    operation.description += "\n\n Query Conformance Expectation: **" + (required.value as CodeType).value   + "** be supported."
+                                }
+                            }
                         addResourceIdParameter(operation)
-                        addFhirResourceResponse(ctx, openApi, operation, "OperationOutcome",resftfulIntraction,null,null)
+                        addFhirResourceResponse(ctx, openApi, operation, "OperationOutcome",resftfulIntraction,null,null, enhance)
                     }
 
                     // Type history
                     CapabilityStatement.TypeRestfulInteraction.HISTORYTYPE -> {
                         val operation = getPathItem(paths, "/$resourceType/_history", PathItem.HttpMethod.GET)
                         operation.addTagsItem(resourceType)
-                        operation.summary = "history"
-                        operation.description =
-                            "Fetch the resource change [history](http://www.hl7.org/fhir/http.html#history) for all resources of type $resourceType."
-                        if (resftfulIntraction.hasDocumentation()) {
-                            operation.description += "\n\n"+resftfulIntraction.documentation
+                        if (enhance) {
+                            operation.externalDocs = ExternalDocumentation()
+                            operation.externalDocs.description("FHIR RESTful API - history")
+                            operation.externalDocs.url("https://hl7.org/fhir/R4/http.html#history")
                         }
-                        processSearchParameter(operation,nextResource,resourceType)
+                        if (resftfulIntraction.hasDocumentation()) {
+                            operation.description = resftfulIntraction.documentation
+                        }
+                        if (enhance && resftfulIntraction.hasExtension("http://hl7.org/fhir/StructureDefinition/capabilitystatement-expectation")) {
+                            if (operation.description == null) operation.description = ""
+                            for (required in resftfulIntraction.getExtensionsByUrl("http://hl7.org/fhir/StructureDefinition/capabilitystatement-expectation")) {
+                                operation.description += "\n\n Query Conformance Expectation: **" + (required.value as CodeType).value   + "** be supported."
+                            }
+                        }
+                        processSearchParameter(operation,nextResource,resourceType, enhance)
                         addResourceAPIMParameter(operation)
-                        addFhirResourceResponse(ctx, openApi, operation,  resourceType,resftfulIntraction, null,null)
+                        addFhirResourceResponse(ctx, openApi, operation,  resourceType,resftfulIntraction, null,null, enhance)
                     }
 
                         // Instance history
@@ -304,16 +395,24 @@ class OpenAPIParser(@Qualifier("R4") private val ctx: FhirContext,
                             "/$resourceType/{id}/_history", PathItem.HttpMethod.GET
                         )
                         operation.addTagsItem(resourceType)
-                        operation.summary = "history"
-                        operation.description =
-                            "Fetch the resource change [history](http://www.hl7.org/fhir/http.html#history) for all resources of type $resourceType"
-                         if (resftfulIntraction.hasDocumentation()) {
-                             operation.description += "\n\n"+resftfulIntraction.documentation
+                         if (enhance) {
+                             operation.externalDocs = ExternalDocumentation()
+                             operation.externalDocs.description("FHIR RESTful API - history")
+                             operation.externalDocs.url("https://hl7.org/fhir/R4/http.html#history")
+                         }
+                        if (resftfulIntraction.hasDocumentation()) {
+                             operation.description = resftfulIntraction.documentation
+                         }
+                         if (enhance && resftfulIntraction.hasExtension("http://hl7.org/fhir/StructureDefinition/capabilitystatement-expectation")) {
+                             if (operation.description == null) operation.description = ""
+                             for (required in resftfulIntraction.getExtensionsByUrl("http://hl7.org/fhir/StructureDefinition/capabilitystatement-expectation")) {
+                                 operation.description += "\n\n Query Conformance Expectation: **" + (required.value as CodeType).value  + "** be supported."
+                             }
                          }
                         addResourceIdParameter(operation)
-                        processSearchParameter(operation,nextResource,resourceType)
+                        processSearchParameter(operation,nextResource,resourceType, enhance)
                         addResourceAPIMParameter(operation)
-                        addFhirResourceResponse(ctx, openApi, operation,  resourceType,resftfulIntraction,null,null)
+                        addFhirResourceResponse(ctx, openApi, operation,  resourceType,resftfulIntraction,null,null, enhance)
                     }
 
                     else -> {}
@@ -328,34 +427,54 @@ class OpenAPIParser(@Qualifier("R4") private val ctx: FhirContext,
                     "/$resourceType/{id}/_history/{version_id}", PathItem.HttpMethod.GET
                 )
                 operation.addTagsItem(resourceType)
-                operation.summary = "vread"
-                operation.description = "[vread](http://www.hl7.org/fhir/http.html#vread) $resourceType instance with specific version."
+                if (enhance) {
+                    operation.externalDocs = ExternalDocumentation()
+                    operation.externalDocs.description("FHIR RESTful API - vread")
+                    operation.externalDocs.url("https://hl7.org/fhir/R4/http.html#vread")
+                }
 
                 addResourceIdParameter(operation)
                 addResourceVersionIdParameter(operation)
                 addResourceAPIMParameter(operation)
-                addFhirResourceResponse(ctx, openApi, operation,  resourceType,null,null,null)
+                addFhirResourceResponse(ctx, openApi, operation,  resourceType,null,null,null, enhance)
             }
 
 
             // Resource-level Operations
             for (nextOperation in nextResource.operation) {
-                addFhirOperation(ctx, openApi, paths, resourceType, nextOperation)
+                addFhirOperation(ctx, openApi, paths, resourceType, nextOperation, enhance)
             }
         }
         return openApi
     }
 
 
-    private fun processSearchParameter(operation : Operation, nextResource : CapabilityStatement.CapabilityStatementRestResourceComponent,resourceType: String) {
+    private fun processSearchParameter(operation : Operation,
+                                       nextResource : CapabilityStatement.CapabilityStatementRestResourceComponent,
+                                       resourceType: String,
+                                       addFHIRBoilerPlater: Boolean) {
         for (nextSearchParam in nextResource.searchParam) {
             val parametersItem = Parameter()
             operation.addParametersItem(parametersItem)
             parametersItem.name = nextSearchParam.name
             parametersItem.setIn("query")
-            parametersItem.description = nextSearchParam.documentation
-            parametersItem.description += getSearchParameterDocumentation(nextSearchParam,resourceType, parametersItem,true)
+            parametersItem.description = ""
+            if (nextSearchParam.hasDocumentation()) parametersItem.description += nextSearchParam.documentation
+            if (addFHIRBoilerPlater) parametersItem.description += getSearchParameterDocumentation(nextSearchParam,resourceType, parametersItem,true)
+            /* required is not present in CapabilityStatement ..... or not found at present
+            if (nextSearchParam.hasExtension()) {
+                nextSearchParam.extension.forEach {
+                    if (it.hasUrl() && it.url.equals("http://hl7.org/fhir/StructureDefinition/capabilitystatement-expectation")) {
+                        if (it.hasValue() && it.value is CodeType) {
+                            if ((it.value as CodeType).code.equals("SHALL")) {
+                                parametersItem.required = true
+                                }
+                        }
+                    }
+                }
+            }
 
+             */
             // calculate style and explode
             parametersItem.style = Parameter.StyleEnum.FORM
             if (parametersItem.schema != null && parametersItem.schema.format != null) {
@@ -436,6 +555,10 @@ class OpenAPIParser(@Qualifier("R4") private val ctx: FhirContext,
         }
     }
 
+    fun unescapeMarkdown(markdown : String ) : String {
+        return StringEscapeUtils.unescapeHtml4(markdown)
+    }
+
     private fun addJSONSchema(openApi: OpenAPI) {
         // Add schema
 
@@ -450,30 +573,14 @@ class OpenAPIParser(@Qualifier("R4") private val ctx: FhirContext,
     }
 
 
-
-    private fun getBaseProfile(profile: String) :StructureDefinition? {
-        var profileDef = getProfile(profile)
-        if (profileDef != null && profileDef.hasBaseDefinition() && !profileDef.baseDefinition.contains("Resource")) {
-           profileDef = getBaseProfile(profileDef.baseDefinition)
-        }
-        return profileDef
-    }
-
-    private fun getProfile(profile: String?) : StructureDefinition? {
+    fun getProfile(profile: String?) : StructureDefinition? {
+        if (profile == null) return null
         val structureDefinition = supportChain.fetchStructureDefinition(profile)
         if (structureDefinition is StructureDefinition) return structureDefinition
         return null
     }
 
-    private fun getDocumentationPath(profile : String) : String {
-        supportChain.fetchAllConformanceResources()?.filterIsInstance<StructureDefinition>()?.forEach {
-            if (it.url == profile) {
-                return "https://simplifier.net/guide/nhsdigital"
-               /// TODO return getDocumentationPathNpm(profile,npmPackage)
-            }
-        }
-        return "https://simplifier.net/guide/nhsdigital/home"
-    }
+
 
 
     private fun getProfileName(profile : String) : String {
@@ -536,7 +643,8 @@ class OpenAPIParser(@Qualifier("R4") private val ctx: FhirContext,
         theOpenApi: OpenAPI,
         thePaths: Paths,
         theResourceType: String?,
-        theOperation: CapabilityStatement.CapabilityStatementRestResourceOperationComponent
+        theOperation: CapabilityStatement.CapabilityStatementRestResourceOperationComponent,
+        enhance: Boolean
     ) {
         val operationDefinition = AtomicReference<OperationDefinition?>()
         //val definitionId = IdType(theOperation.definition)
@@ -567,7 +675,8 @@ class OpenAPIParser(@Qualifier("R4") private val ctx: FhirContext,
                 operationDefinition.get(),
                 operation,
                 true,
-                theOperation
+                theOperation,
+                enhance
             )
             return
         }
@@ -587,7 +696,8 @@ class OpenAPIParser(@Qualifier("R4") private val ctx: FhirContext,
                         operationDefinition.get(),
                         operation,
                         true,
-                        theOperation
+                        theOperation,
+                        enhance
                     )
                 }
                 if (operationDefinition.get()!!.instance) {
@@ -603,7 +713,8 @@ class OpenAPIParser(@Qualifier("R4") private val ctx: FhirContext,
                         operationDefinition.get(),
                         operation,
                         true,
-                        theOperation
+                        theOperation,
+                        enhance
                     )
                 }
             } else {
@@ -613,7 +724,7 @@ class OpenAPIParser(@Qualifier("R4") private val ctx: FhirContext,
                             .code, PathItem.HttpMethod.GET
                     )
                     populateOperation(theFhirContext, theOpenApi, null, operationDefinition.get(), operation, true,
-                        theOperation
+                        theOperation, enhance
                     )
                 }
             }
@@ -633,7 +744,8 @@ class OpenAPIParser(@Qualifier("R4") private val ctx: FhirContext,
                         operationDefinition.get(),
                         operation,
                         false,
-                        theOperation
+                        theOperation,
+                        enhance
                     )
                 }
                 if (operationDefinition.get()!!.instance) {
@@ -649,7 +761,8 @@ class OpenAPIParser(@Qualifier("R4") private val ctx: FhirContext,
                         operationDefinition.get(),
                         operation,
                         false,
-                        theOperation
+                        theOperation,
+                        enhance
 
                     )
                 }
@@ -659,8 +772,8 @@ class OpenAPIParser(@Qualifier("R4") private val ctx: FhirContext,
                         thePaths, "/$" + operationDefinition.get()!!
                             .code, PathItem.HttpMethod.POST
                     )
-                    populateOperation(theFhirContext, theOpenApi, null, operationDefinition.get(), operation, false,                        theOperation
-                    )
+                    populateOperation(theFhirContext, theOpenApi, null, operationDefinition.get(), operation,
+                        false, theOperation, enhance)
                 }
             }
         }
@@ -674,7 +787,8 @@ class OpenAPIParser(@Qualifier("R4") private val ctx: FhirContext,
         theOperationDefinition: OperationDefinition?,
         theOperation: Operation,
         theGet: Boolean,
-        theOperationComponent: CapabilityStatement.CapabilityStatementRestResourceOperationComponent
+        theOperationComponent: CapabilityStatement.CapabilityStatementRestResourceOperationComponent,
+        enhance: Boolean
     ) {
         if (theResourceType == null) {
             theOperation.addTagsItem(PAGE_SYSTEM)
@@ -682,7 +796,7 @@ class OpenAPIParser(@Qualifier("R4") private val ctx: FhirContext,
             theOperation.addTagsItem(theResourceType)
         }
         theOperation.summary = theOperationDefinition!!.title
-        theOperation.description = theOperationDefinition.description
+        theOperation.description = unescapeMarkdown(theOperationDefinition.description)
         if (theOperationComponent.hasExtension("https://fhir.nhs.uk/StructureDefinition/Extension-NHSDigital-CapabilityStatement-Examples")) {
             //
             val exampleOperation = getOperationResponeExample(theOperationComponent)
@@ -696,18 +810,19 @@ class OpenAPIParser(@Qualifier("R4") private val ctx: FhirContext,
                     openApi,
                     exampleList,
                     (exampleOperation.get())?.fhirType(),
-                    null
+                    null,
+                    enhance
                 )
                 theOperation.responses.addApiResponse("200",response200)
 
-                addStandardResponses(openApi,theOperation.responses)
+                addStandardResponses(openApi,theOperation.responses, enhance)
             } else {
-                addFhirResourceResponse(theFhirContext, openApi, theOperation, "Parameters", null,theOperationComponent,null)
+                addFhirResourceResponse(theFhirContext, openApi, theOperation, "Parameters", null,theOperationComponent,null, enhance)
             }
 
             //theOperation.requestBody.content = provideContentFhirResource(theOpenApi,ctx,exampleOperation, null)
         } else {
-            addFhirResourceResponse(theFhirContext, openApi, theOperation, "Parameters", null, theOperationComponent,null)
+            addFhirResourceResponse(theFhirContext, openApi, theOperation, "Parameters", null, theOperationComponent,null, enhance)
         }
         val mediaType = MediaType()
         if (theGet) {
@@ -716,7 +831,7 @@ class OpenAPIParser(@Qualifier("R4") private val ctx: FhirContext,
                 theOperation.addParametersItem(parametersItem)
                 parametersItem.name = nextParameter.name
                 parametersItem.setIn("query")
-                parametersItem.description = nextParameter.documentation
+                parametersItem.description = unescapeMarkdown(nextParameter.documentation)
                 parametersItem.style = Parameter.StyleEnum.SIMPLE
                 parametersItem.required = nextParameter.min > 0
                 val exampleExtensions = nextParameter.getExtensionsByUrl(HapiExtensions.EXT_OP_PARAMETER_EXAMPLE_VALUE)
@@ -857,7 +972,7 @@ class OpenAPIParser(@Qualifier("R4") private val ctx: FhirContext,
                 Schema<Any?>().type("object").title("Bundle-Message")
 
                // addSchemaFhirResource(openApi,bundleSchema,"Bundle-Message")
-                addFhirResourceSchema(openApi,"Bundle","https://fhir.nhs.uk/StructureDefinition/NHSDigital-Bundle-FHIRMessage")
+                addFhirResourceSchema(openApi,"Bundle","https://fhir.nhs.uk/StructureDefinition/NHSDigital-Bundle-FHIRMessage", enhance)
                 mediaType.schema = ObjectSchema().`$ref`(
                     "#/components/schemas/Bundle"
                 )
@@ -872,7 +987,7 @@ class OpenAPIParser(@Qualifier("R4") private val ctx: FhirContext,
             theOperation.requestBody.content.addMediaType(Constants.CT_FHIR_JSON_NEW, mediaType)
 
         }
-        if (theOperationDefinition.hasParameter()) {
+        if (enhance && theOperationDefinition.hasParameter()) {
             var inDoc = "\n\n ## Parameters (In) \n\n |Name | Cardinality | Type | Profile | Documentation |\n |-------|-----------|-------------|------------|------------|"
             var outDoc = "\n\n ## Parameters (Out) \n\n |Name | Cardinality | Type | Profile | Documentation |\n |-------|-----------|-------------|------------|------------|"
             for (parameter in theOperationDefinition.parameter) {
@@ -910,9 +1025,9 @@ class OpenAPIParser(@Qualifier("R4") private val ctx: FhirContext,
             theOperation.description += outDoc
         }
         if (theOperationDefinition.hasComment()) {
-            theOperation.description += "\n\n ## Comment \n\n"+theOperationDefinition.comment
+            theOperation.description += "\n\n ## Comment \n\n"+unescapeMarkdown(theOperationDefinition.comment)
         }
-        if (theOperationDefinition.url.equals("http://hl7.org/fhir/OperationDefinition/MessageHeader-process-message")
+        if (enhance && theOperationDefinition.url.equals("http://hl7.org/fhir/OperationDefinition/MessageHeader-process-message")
             || theOperationDefinition.url.equals("https://fhir.nhs.uk/OperationDefinition/MessageHeader-process-message")) {
             var supportedDocumentation = "\n\n ## Supported Messages \n\n"
 
@@ -923,7 +1038,7 @@ class OpenAPIParser(@Qualifier("R4") private val ctx: FhirContext,
                 for (supportedMessage in messaging.supportedMessage) {
                     val idStr = getProfileName(supportedMessage.definition)
                     supportedDocumentation += "* $idStr \n"
-                    mediaType.examples[idStr] = getMessageExample(openApi, supportedMessage)
+                    mediaType.examples[idStr] = getMessageExample(openApi, supportedMessage, enhance)
                 }
             }
             theOperation.description += supportedDocumentation
@@ -989,10 +1104,11 @@ class OpenAPIParser(@Qualifier("R4") private val ctx: FhirContext,
         theOperation: Operation,
         theExampleSupplier: List<Example>,
         theResourceType: String?,
-        profile: String?
+        profile: String?,
+        enhance: Boolean
     ) {
         val requestBody = RequestBody()
-        requestBody.content = provideContentFhirResource(theOpenApi, theExampleSupplier,theResourceType, profile)
+        requestBody.content = provideContentFhirResource(theOpenApi, theExampleSupplier,theResourceType, profile, enhance)
         theOperation.requestBody = requestBody
     }
 
@@ -1014,20 +1130,34 @@ class OpenAPIParser(@Qualifier("R4") private val ctx: FhirContext,
         theResourceType: String?,
         resftfulIntraction : CapabilityStatement.ResourceInteractionComponent?,
         operationComponent: CapabilityStatement.CapabilityStatementRestResourceOperationComponent?,
-        profile: String?
+        profile: String?,
+        enhance: Boolean
     ) {
         theOperation.responses = ApiResponses()
         val response200 = ApiResponse()
         response200.description = "Success"
         if (resftfulIntraction != null) {
-            val exampleResponse = getInteractionResponseExample(resftfulIntraction)
+            var exampleResponse = getInteractionResponseExample(resftfulIntraction)
 
-            response200.content = provideContentFhirResource(
-                theOpenApi,
-                exampleResponse,
-                theResourceType,
-                profile
-            )
+            if (resftfulIntraction.code.toCode().equals("search-type")) {
+                if (theResourceType !== null) {
+                    exampleResponse = getSearchSetExample(theResourceType)
+                }
+                response200.content = provideContentFhirResource(
+                    theOpenApi,
+                    exampleResponse,
+                    "Bundle",
+                    profile, enhance
+                )
+            } else {
+                response200.content = provideContentFhirResource(
+                    theOpenApi,
+                    exampleResponse,
+                    theResourceType,
+                    profile, enhance
+                )
+            }
+
 
         }
         if (operationComponent != null) {
@@ -1037,7 +1167,7 @@ class OpenAPIParser(@Qualifier("R4") private val ctx: FhirContext,
                 theOpenApi,
                 exampleResponse,
                 theResourceType,
-                profile
+                profile, enhance
             )
 
         }
@@ -1047,17 +1177,17 @@ class OpenAPIParser(@Qualifier("R4") private val ctx: FhirContext,
                 theOpenApi,
                 genericExampleSupplier(theFhirContext, theResourceType),
                 theResourceType,
-                profile
+                profile, enhance
             )
         }
 
         theOperation.responses.addApiResponse("200", response200)
 
-        addStandardResponses(theOpenApi,theOperation.responses)
+        addStandardResponses(theOpenApi,theOperation.responses, enhance)
 
     }
 
-    private fun addStandardResponses(theOpenApi: OpenAPI,responses: ApiResponses) {
+    private fun addStandardResponses(theOpenApi: OpenAPI,responses: ApiResponses, enhance: Boolean) {
         val response4xx = ApiResponse()
         var example = Example()
         example.value = getErrorOperationOutcome()
@@ -1067,7 +1197,8 @@ class OpenAPIParser(@Qualifier("R4") private val ctx: FhirContext,
             theOpenApi,
             exampleResponse,
             "OperationOutcome",
-            null
+            null,
+            enhance
         )
         responses.addApiResponse("4xx", response4xx)
 
@@ -1081,7 +1212,8 @@ class OpenAPIParser(@Qualifier("R4") private val ctx: FhirContext,
                 theOpenApi,
                 exampleResponse,
                 "OperationOutcome",
-                null
+                null,
+                enhance
             )
             responses.addApiResponse("403", response403)
         }
@@ -1121,7 +1253,7 @@ class OpenAPIParser(@Qualifier("R4") private val ctx: FhirContext,
         return ctx?.newJsonParser()?.setPrettyPrint(true)?.encodeResourceToString(operationOutcome)
     }
 
-    private fun getMessageExample(openApi: OpenAPI,supportedMessage : CapabilityStatement.CapabilityStatementMessagingSupportedMessageComponent) : Example {
+    private fun getMessageExample(openApi: OpenAPI,supportedMessage : CapabilityStatement.CapabilityStatementMessagingSupportedMessageComponent, enhance: Boolean) : Example {
 
         var supportedDocumentation = ""
         val example = Example()
@@ -1133,7 +1265,7 @@ class OpenAPIParser(@Qualifier("R4") private val ctx: FhirContext,
                 if (resourceChain is MessageDefinition) {
                     if (resourceChain.url == supportedMessage.definition) {
                         if (resourceChain.hasDescription()) {
-                            example.summary = resourceChain.description
+                            example.summary = unescapeMarkdown(resourceChain.description)
                         }
                         if (resourceChain.hasPurpose()) {
                             supportedDocumentation += "\n ### Purpose" + resourceChain.purpose
@@ -1153,11 +1285,11 @@ class OpenAPIParser(@Qualifier("R4") private val ctx: FhirContext,
                                     profile = ""
                                 } else {
                                     profile = getDocumentationPath(profile)
-                                    addFhirResourceSchema(openApi, foci.code, foci.profile)
-                                    addResoureTag(openApi, foci.code,foci.profile)
+                                    addFhirResourceSchema(openApi, foci.code, foci.profile, enhance)
+                                    addResoureTag(openApi, foci.code,foci.profile, enhance, "")
                                 }
                                 val idStr = getProfileName(foci.profile)
-                                supportedDocumentation += "| [$resource](https://www.hl7.org/fhir/$resource.html) | [$idStr]($profile) | $min | $max | \n"
+                                supportedDocumentation += "| [$resource](https://www.hl7.org/fhir/R4/$resource.html) | [$idStr]($profile) | $min | $max | \n"
                             }
                         }
                         // only process this loop once
@@ -1178,11 +1310,14 @@ class OpenAPIParser(@Qualifier("R4") private val ctx: FhirContext,
                 example.value = ctx?.newJsonParser()?.encodeResourceToString(messageExample?.get())
             }
         }
-        example.description = supportedDocumentation
+        example.description = unescapeMarkdown(supportedDocumentation)
         return example
     }
 
+
     private fun getExampleFromPackages(request: Boolean, extension: Extension, create : Boolean) : Supplier<IBaseResource?>? {
+        return null
+        /*
         // TODO Return array of examples including documentation
         val path = (extension.getExtensionByUrl("value").value as Reference).reference
         val pathParts = path.split("/")
@@ -1214,7 +1349,13 @@ class OpenAPIParser(@Qualifier("R4") private val ctx: FhirContext,
             println("----- Not found " + request + path)
         }
         return null
+
+         */
     }
+
+
+
+
     private fun getRequestExample(interaction : CapabilityStatement.ResourceInteractionComponent) : List<Example>{
         //
         val examples = mutableListOf<Example>()
@@ -1233,7 +1374,7 @@ class OpenAPIParser(@Qualifier("R4") private val ctx: FhirContext,
                         exampleOAS.summary = (exampleExt.getExtensionString("summary") as String)
                     }
                     if (exampleExt.hasExtension("description")) {
-                        exampleOAS.description = (exampleExt.getExtensionString("description") as String)
+                        exampleOAS.description = unescapeMarkdown((exampleExt.getExtensionString("description") as String))
                     }
                 }
             }
@@ -1262,6 +1403,33 @@ class OpenAPIParser(@Qualifier("R4") private val ctx: FhirContext,
             return getResponseExample(apiExtension,searchSet,createCall)
         }
         return emptyList()
+    }
+
+    fun getSearchSetExample(resourceType : String) : List<Example> {
+        val examples = mutableListOf<Example>()
+        val exampleOAS = Example()
+        examples.add(exampleOAS)
+        val bundle = Bundle()
+        bundle.type = Bundle.BundleType.SEARCHSET
+        bundle.addLink(
+            Bundle.BundleLinkComponent()
+                .setRelation("self")
+                .setUrl(exampleServer + exampleServerPrefix + resourceType + "?parameterExample=123&page=1")
+        )
+        bundle.addLink(
+            Bundle.BundleLinkComponent()
+                .setRelation("next")
+                .setUrl(exampleServer + exampleServerPrefix + resourceType + "?parameterExample=123&page=2")
+        )
+        val example =  ctx?.getResourceDefinition(resourceType)?.newInstance()
+        example?.setId("1234")
+        bundle.entry.add(
+            Bundle.BundleEntryComponent().setResource(example as Resource)
+                .setFullUrl(exampleServer + exampleServerPrefix + resourceType + "/1234")
+        )
+        bundle.total = 1
+        exampleOAS.value = ctx?.newJsonParser()?.encodeResourceToString(bundle)
+        return examples
     }
     private fun getResponseExample(apiExtension : Extension,searchExample : Boolean,createCall : Boolean) : List<Example> {
         val examples = mutableListOf<Example>()
@@ -1384,7 +1552,8 @@ class OpenAPIParser(@Qualifier("R4") private val ctx: FhirContext,
         theOpenApi: OpenAPI,
         examples: List<Example>,
         resourceType: String?,
-        profile: String?
+        profile: String?,
+        enhance: Boolean
     ): Content {
         val retVal = Content()
         var resourceType2 = resourceType
@@ -1400,7 +1569,7 @@ class OpenAPIParser(@Qualifier("R4") private val ctx: FhirContext,
             if (resourceType2 == null && theExampleSupplier != null)
                 resourceType2 = theExampleSupplier.fhirType()
            // if (resourceType2 != null) addJSONSchema(theOpenApi, resourceType2)
-            val jsonSchema = resourceType2?.let { getMediaType(theOpenApi, it, profile) }
+            val jsonSchema = resourceType2?.let { getMediaType(theOpenApi, it, profile, enhance) }
 
             if (theExampleSupplier != null) {
                 if (jsonSchema != null) {
@@ -1408,7 +1577,7 @@ class OpenAPIParser(@Qualifier("R4") private val ctx: FhirContext,
                 }
             }
             retVal.addMediaType(Constants.CT_FHIR_JSON_NEW, jsonSchema)
-            val xmlSchema = resourceType2?.let { getMediaType(theOpenApi, it, profile) }
+            val xmlSchema = resourceType2?.let { getMediaType(theOpenApi, it, profile, enhance) }
 
             if (theExampleSupplier != null) {
                 if (xmlSchema != null) {
@@ -1417,7 +1586,7 @@ class OpenAPIParser(@Qualifier("R4") private val ctx: FhirContext,
             }
             if (generateXML) retVal.addMediaType(Constants.CT_FHIR_XML_NEW, xmlSchema)
         } else {
-            val jsonSchema = getMediaType(theOpenApi,resourceType2, profile)
+            val jsonSchema = getMediaType(theOpenApi,resourceType2, profile, enhance)
 
             // Ensure schema is added
             //if (resourceType2 != null) addJSONSchema(theOpenApi, resourceType2)
@@ -1501,7 +1670,7 @@ class OpenAPIParser(@Qualifier("R4") private val ctx: FhirContext,
 /*
     protected fun getIndexTemplate(): ClassLoaderTemplateResource? {
         return ClassLoaderTemplateResource(
-            myResourcePathToClasspath["/swagger-ui/index.html"],
+            myResourcePathToClasspath["/swagger-ui/404.html"],
             StandardCharsets.UTF_8.name()
         )
     }
@@ -1557,7 +1726,7 @@ class OpenAPIParser(@Qualifier("R4") private val ctx: FhirContext,
 
         var description = ""
         if (searchParameter?.description != null) {
-            var desc = searchParameter.description
+            var desc = unescapeMarkdown(searchParameter.description)
             if (desc.split("*").size>1) {
                 val exps = desc.split("*")
                 for (exp in exps) {
@@ -1605,29 +1774,35 @@ class OpenAPIParser(@Qualifier("R4") private val ctx: FhirContext,
             when (searchParameter.type) {
                 Enumerations.SearchParamType.TOKEN -> {
                     val array =  ArraySchema()
-                    array.items = StringSchema().format("token")
+                    array.items = StringSchema().format("token").description("token format: [system]|[code],[code],[system]")
+
                     // Should really be added to the StringSchema only but this gets around UI issues
                     array.format("token")
                     parameter.schema = array
                    // parameter.schema.type = "string"
-                    parameter.schema.example = "[system]|[code],[code],[system]"
+                  //  parameter.schema.example = "[system]|[code],[code],[system]"
                 }
                 Enumerations.SearchParamType.REFERENCE -> {
-                    parameter.schema = StringSchema().format("reference")
-                    parameter.schema.example = "[type]/[id] or [id] or [uri]"
+                    parameter.schema = StringSchema().format("reference").description("reference format: [type]/[id] or [id] or [uri]")
+                  //  parameter.schema.example = "[type]/[id] or [id] or [uri]"
                 }
                 Enumerations.SearchParamType.DATE -> {
                     val array =  ArraySchema()
-                    array.items = StringSchema().format("date")
+                    array.items = StringSchema().format("date").pattern("([0-9]([0-9]([0-9][1-9]|[1-9]0)|[1-9]00)|[1-9]000)(-(0[1-9]|1[0-2])(-(0[1-9]|[1-2][0-9]|3[0-1])\n" +
+                            ")?)?")
                     // Should really be added to the StringSchema only but this gets around UI issues
                     array.format("date")
                     parameter.schema = array
                     parameter.description = "See FHIR documentation for more details."
-                    parameter.schema.example = "eq2013-01-14"
+                   // parameter.schema.example = "eq2013-01-14"
+                }
+                Enumerations.SearchParamType.NUMBER -> {
+                    parameter.schema = StringSchema().type("number").pattern("[0]|[-+]?[1-9][0-9]*")
+                    //  parameter.schema.example = "LS15"
                 }
                 Enumerations.SearchParamType.STRING -> {
-                    parameter.schema = StringSchema().type("string")
-                    parameter.schema.example = "LS15"
+                    parameter.schema = StringSchema().type("string").pattern("^[\\s\\S]+\$")
+                  //  parameter.schema.example = "LS15"
                 }
                 else -> {
                     parameter.schema = StringSchema().format(nextSearchParam.type.toCode())
@@ -1638,12 +1813,18 @@ class OpenAPIParser(@Qualifier("R4") private val ctx: FhirContext,
         if (parameters.size>1) {
             description += "\n\n Chained search parameter. Please see [chained](http://www.hl7.org/fhir/search.html#chaining)"
         }
-        if (first) description += "\n\n | Name | Type |  Expression | \n |--------|--------|--------| \n "
-        if (searchParameter != null) {
-            description += "| $name | [" + type?.lowercase() + " ](https://www.hl7.org/fhir/search.html#" + type?.lowercase() + ")|  $expression | \n"
-        } else {
-            description += "\n\n Caution: This does not appear to be a valid search parameter. **Please check HL7 FHIR conformance.**"
+        if (first) description += "\n\n **Search Parameter Conformance** \n\n | Conformance Expectation | Name | OAS format / FHIR Type |  \n |--------|--------|--------| \n "
+        var conformance = ""
+        val conformanceExt = nextSearchParam.getExtensionByUrl("http://hl7.org/fhir/StructureDefinition/capabilitystatement-expectation")
+        if (conformanceExt !== null && conformanceExt.hasValue()) {
+            conformance = "**" + (conformanceExt.value as CodeType).value + "**"
         }
+        if (searchParameter != null) {
+            description += "| $conformance | [$name](https://www.hl7.org/fhir/R4/$originalResourceType.html#search) | [" + type?.lowercase() + " ](https://www.hl7.org/fhir/R4/search.html#" + type?.lowercase() + ")|   \n"
+        } else {
+            description += "\n\n **Caution:** This does not appear to be a valid search parameter. Please check HL7 FHIR conformance."
+        }
+
 
         if (parameters.size>1) {
             if (searchParameter?.type != Enumerations.SearchParamType.REFERENCE) {
@@ -1679,23 +1860,14 @@ class OpenAPIParser(@Qualifier("R4") private val ctx: FhirContext,
         return description
     }
 
-    private fun getMediaType(openApi: OpenAPI, resourceType: String?, profile: String?) : MediaType {
+    private fun getMediaType(openApi: OpenAPI, resourceType: String?, profile: String?, enhance: Boolean) : MediaType {
         val mediaType = MediaType().schema(ObjectSchema().`$ref`(
             "#/components/schemas/$resourceType"
             //"https://hl7.org/fhir/R4/fhir.schema.json#/definitions/$resourceType"
         ))
-        addFhirResourceSchema(openApi,resourceType, profile)
+        addFhirResourceSchema(openApi,resourceType, profile, enhance)
         return mediaType
     }
-
-    /*
-    private fun addSchemaFhirResource(openApi: OpenAPI, schema : Schema<Any?>, schemaName : String?) {
-        ensureComponentsSchemasPopulated(openApi)
-        if (!openApi.components.schemas.containsKey(schemaName)) {
-            openApi.components.addSchemas(schemaName,schema)
-        }
-    }
-*/
 
     private fun ensureComponentsSchemasPopulated(theOpenApi: OpenAPI) {
         if (theOpenApi.components == null) {
@@ -1706,7 +1878,7 @@ class OpenAPIParser(@Qualifier("R4") private val ctx: FhirContext,
         }
     }
 
-    private fun addFhirResourceSchema(openApi: OpenAPI, resourceType: String?, profile: String?) {
+    private fun addFhirResourceSchema(openApi: OpenAPI, resourceType: String?, profile: String?, enhance: Boolean) {
         // Add schema
         ensureComponentsSchemasPopulated(openApi)
         if (!openApi.components.schemas.containsKey(resourceType)) {
@@ -1716,83 +1888,111 @@ class OpenAPIParser(@Qualifier("R4") private val ctx: FhirContext,
             var schemaList = mutableMapOf<String, Schema<Any>>()
 
             schema.description =
-                "HL7 FHIR Schema [$resourceType](https://hl7.org/fhir/R4/fhir.schema.json#/definitions/$resourceType)." + ". HL7 FHIR Documentation [$resourceType](\"https://www.hl7.org/fhir/$resourceType.html\")"
+                "HL7 FHIR Schema [$resourceType](https://hl7.org/fhir/R4/fhir.schema.json#/definitions/$resourceType)." +
+                 " HL7 FHIR Documentation [$resourceType](https://www.hl7.org/fhir/R4/$resourceType.html)"
 
 
-            // This doesn't appear to be used. Consider removing
             schema.externalDocs = ExternalDocumentation()
             schema.externalDocs.description = resourceType
 
-            schema.externalDocs.url = "https://www.hl7.org/fhir/$resourceType.html"
+            if (profile !== null) {
+                val structureDefinition = getProfile(profile)
+                if (structureDefinition !== null) {
+                    schema.externalDocs.description = structureDefinition.title
+                    schema.externalDocs.url = getDocumentationPath(profile)
+                }
+                // Won't work if NHS England fixes URL resolution
+                if ((structureDefinition == null || schema.externalDocs.url.equals(profile))
+                    && resourceType !== null) {
+                    val profileNew = capabilityStatementApplier.getProfile(resourceType)
+                    val structureDefinition = getProfile(profileNew)
+                    if (structureDefinition !== null) {
+                        schema.description += " \n\n NHS England/HL7 UK Conformance Documentation (Schema constraints) [" + structureDefinition.title + "](" +getDocumentationPath(profileNew) + ")"
+                    }
+                    schema.externalDocs.description = profile
+                    schema.externalDocs.url = getDocumentationPath(profile)
+                }
+
+            } else {
+                if (resourceType !== null) {
+                    val profileNew = capabilityStatementApplier.getProfile(resourceType)
+                    if (profileNew !== null) {
+                        val structureDefinition = getProfile(profileNew)
+                        if (structureDefinition !== null) {
+                            schema.externalDocs.description = structureDefinition.title
+                            schema.externalDocs.url = getDocumentationPath(profileNew)
+                        }
+                    }
+                }
+            }
+
 
             if (resourceType != null) {
                 schemaList.put(resourceType, schema)
             }
-            if (profile != null) {
+          /* Disabled 27/Jan/2024 This is done via API teams, no reason to enter into that conversation
+
+           if (profile != null) {
+
                 val structureDefinition = getProfile(profile)
                 if (structureDefinition is StructureDefinition) {
+                    schema.description += "\n\n Profile: [" + structureDefinition.url+"]("+this.getDocumentationPath(structureDefinition.url)+")"
+                    if (enhance) {
+                        for (element in structureDefinition.snapshot.element) {
+                            if ((element.hasDefinition() ||
+                                        element.hasShort() ||
+                                        element.hasType() ||
+                                        element.hasBinding()) &&
+                                (element.hasMustSupport() || (element.hasMin() && element.min > 0))
+                            ) {
+                                val paths = element.id.split(".")
+                                var title = paths[paths.size - 1]
+                                /* if (element.hasSliceName()) {
+                                    title += " (" + element.sliceName + ")"
+                                }*/
+                                var elementSchema: Schema<Any>? = null
 
-                    if (structureDefinition.hasDescription()) {
-                        schema.description += "\n\n " + structureDefinition.description
-                    }
-                    if (structureDefinition.hasPurpose()) {
-                        schema.description += "\n\n " + structureDefinition.purpose
-                    }
-
-                    for (element in structureDefinition.snapshot.element) {
-                        if ((element.hasDefinition() ||
-                                    element.hasShort() ||
-                                    element.hasType() ||
-                                    element.hasBinding()) &&
-                            (element.hasMustSupport() || (element.hasMin() && element.min > 0))
-                        ) {
-                            val paths = element.id.split(".")
-                            var title = paths[paths.size - 1]
-                            /* if (element.hasSliceName()) {
-                                title += " (" + element.sliceName + ")"
-                            }*/
-                            var elementSchema: Schema<Any>? = null
-
-                            if (element.hasType()) {
-                                if (element.typeFirstRep.code[0].isUpperCase()) {
-                                    elementSchema = Schema<ObjectSchema>().type("object")
+                                if (element.hasType()) {
+                                    if (element.typeFirstRep.code[0].isUpperCase()) {
+                                        elementSchema = Schema<ObjectSchema>().type("object")
+                                    } else {
+                                        elementSchema = Schema<String>()
+                                            .type("string")
+                                    }
                                 } else {
                                     elementSchema = Schema<String>()
                                         .type("string")
                                 }
-                            } else {
-                                elementSchema = Schema<String>()
-                                    .type("string")
-                            }
 
-                            if (element.hasBase() && element.base.max.equals("*")) {
-                                elementSchema = ArraySchema().type("array").items(elementSchema)
-                            }
-
-                            if (elementSchema != null) {
-                                elementSchema.description = getElementDescription(element)
-                                if (element.hasMin()) elementSchema.minimum = BigDecimal(element.min)
-
-
-                                var parent = ""
-                                for (i in 0 until (paths.size - 1)) {
-                                    if (!parent.isEmpty()) parent += "."
-                                    parent += paths[i]
+                                if (element.hasBase() && element.base.max.equals("*")) {
+                                    elementSchema = ArraySchema().type("array").items(elementSchema)
                                 }
-                                if (schemaList.get(element.id) == null) {
-                                    schemaList.put(element.id, elementSchema)
-                                }
-                                val parentSchema = schemaList.get(parent)
-                                if (parentSchema is ArraySchema) {
-                                    parentSchema.items.addProperties(title, elementSchema)
-                                } else {
-                                    parentSchema?.addProperties(title, elementSchema)
+
+                                if (elementSchema != null) {
+                                    elementSchema.description = unescapeMarkdown(getElementDescription(element))
+                                    if (element.hasMin()) elementSchema.minimum = BigDecimal(element.min)
+
+
+                                    var parent = ""
+                                    for (i in 0 until (paths.size - 1)) {
+                                        if (!parent.isEmpty()) parent += "."
+                                        parent += paths[i]
+                                    }
+                                    if (schemaList.get(element.id) == null) {
+                                        schemaList.put(element.id, elementSchema)
+                                    }
+                                    val parentSchema = schemaList.get(parent)
+                                    if (parentSchema is ArraySchema) {
+                                        parentSchema.items.addProperties(title, elementSchema)
+                                    } else {
+                                        parentSchema?.addProperties(title, elementSchema)
+                                    }
                                 }
                             }
                         }
                     }
                 }
-            }
+            } */
             if (resourceType == null) {
                 System.out.println("resourceTyoe null")
             } else {
@@ -1850,296 +2050,68 @@ class OpenAPIParser(@Qualifier("R4") private val ctx: FhirContext,
         if (profile.startsWith("https://www.hl7.org")) return ""
         // todo disable for now and try using schema instead
         return ""
-        /*
-        val structureDefinition = supportChain.fetchStructureDefinition(profile)
-        var description = ""
-        if (structureDefinition is StructureDefinition) {
-            for (element in structureDefinition.snapshot.element) {
-                if ((element.hasDefinition() ||
-                    element.hasShort() ||
-                    element.hasType() ||
-                    element.hasBinding()) &&
-                    element.hasMustSupport()
-                ) {
-                    // section title
-                    description += "\n\n ### " + element.path.replace(structureDefinition.type + ".", "")
-                    if (element.hasSliceName()) {
-                       description += " ("+element.sliceName+ ")"
-                    }
-
-                description += getElementDescription(element)
-
-                }
-            }
-        }
-        return description
-
-         */
     }
 
-    private fun getElementDescription(element : ElementDefinition) : String {
-
-        var table = "\n\n| | |\n|----|----|"
-        // header body
-        /*
-        if (element.hasMustSupport() && element.mustSupport) {
-            description += "\n `mustSupport`"
-        }
-*/
-        table += "\n|Element Id|"+element.id+"|"
-        table += "\n|[Cardinality](https://www.hl7.org/fhir/conformance-rules.html#cardinality)|"+element.min+".."+element.max+"|"
-
-
-        if (element.hasFixed()) {
-            if (element.fixed is UriType) {
-                table += "\n|Fixed Value|"+(element.fixed as UriType).value+"|"
-            }
-            if (element.fixed is CodeType) {
-                table += "\n|Fixed Value|"+(element.fixed as CodeType).value+"|"
-            }
-        }
-
-        if (element.hasBinding()) {
-            if (element.binding.hasValueSet())
-            {
-                val valueSet = supportChain.fetchValueSet(element.binding.valueSet)
-                var description = "["+(valueSet as ValueSet).name + "](" + getCanonicalUrl(element.binding.valueSet) +")"
-                if (element.binding.hasStrength()) description += " (" + element.binding.strength.display + ")"
-                if (element.binding.hasDescription()) {
-                    var elementDescription = element.binding.description
-                    elementDescription = " <br/>" + elementDescription.replace("\\n","\n")
-                    description += elementDescription + " "
-                }
-                table += "\n|[Terminology Binding](https://www.hl7.org/fhir/terminologies.html)|"+description+"|"
-            }
-        }
-
-        if (element.hasSliceName()) {
-            table += "\n|[Slice Name](https://www.hl7.org/fhir/profiling.html#slicing)|"+element.sliceName+"|"
-        }
-        if (element.hasSlicing()) {
-            var description = ""
-            if (element.slicing.hasRules()) {
-                description += " *"+element.slicing.rules.name + "*"
-            }
-            if (element.slicing.hasDiscriminator()) {
-                for (discrimninator in element.slicing.discriminator) {
-                    description += " discriminator - "
-                    if (discrimninator.hasType()) {
-                        description += " *"+discrimninator.type.name + "*"
-                    }
-                    if (discrimninator.hasPath()) {
-                        description += " *"+discrimninator.path + "*"
-                    }
-                }
-            }
-            if (element.slicing.hasDescription()) {
-                description += "<br/> "+element.slicing.description
-            }
-            table += "\n|[Slicing](https://www.hl7.org/fhir/profiling.html#slicing)|"+description+"|"
-        }
-
-        // Data type
-        if (element.hasType()) {
-            var description = ""
-            for (type in element.type) {
-
-                description += "["+type.code+"](https://www.hl7.org/fhir/datatypes.html#"+type.code+")"
-                var itemDescription=""
-                var first = true
-                for (target in type.targetProfile) {
-                    if (itemDescription.isEmpty()) description+= "("
-                    val profile = supportChain.fetchStructureDefinition(target.value)
-                    if (!first) {
-                        itemDescription += " "
-                    } else {
-                        first = false
-                    }
-                    itemDescription += "["+(profile as StructureDefinition).name + "]("+ getCanonicalUrl(target.value) +")"
-
-                }
-                first = true
-                for (target in type.profile) {
-                    if (itemDescription.isEmpty()) description+= "("
-                    val profile = supportChain.fetchStructureDefinition(target.value)
-                    if (!first) {
-                        itemDescription += " "
-                    } else {
-                        first = false
-                    }
-                    itemDescription += "["+(profile as StructureDefinition).name+ "](" +getCanonicalUrl(target.value) +")"
-                }
-
-                if (itemDescription.isNotEmpty()) description+= itemDescription + ")"
-                if (type.hasAggregation()) {
-                    for (aggregation in type.aggregation) {
-                        description += "<br/> Aggregation - [" + aggregation.code+"](http://www.hl7.org/fhir/valueset-resource-aggregation-mode.html)"
-                    }
-                }
-            }
-            table += "\n|[type](https://www.hl7.org/fhir/datatypes.html)|"+description+"|"
-        }
-        var description = table + "\n\n<br/>"
-        // Documentation section
-        /*
-        if (element.hasShort()) {
-
-            description += "\n\n " + element.short
-        }
-         */
-
-        if (element.hasDefinition()) {
-            description += "\n\n #### Definition"
-            description += "\n\n " + element.definition.replace("\\n","\n")
-        }
-
-        if (element.hasRequirements()) {
-            description += "\n\n #### Requirements"
-            description += "\n\n " + element.requirements.replace("\\n","\n")
-        }
-
-        if (element.hasComment()) {
-            description += "\n\n #### Comment"
-            description += "\n\n " + element.comment.replace("\\n","\n")
-        }
-
-        if (element.hasConstraint()) {
-            var displayConstraints = false
-            for (constraint in element.constraint) {
-                if (doDisplay(constraint.key)) displayConstraints = true
-            }
-
-            if (displayConstraints) {
-                description += "\n\n #### Constraints \n"
-                for (constraint in element.constraint) {
-                    if (doDisplay(constraint.key)) description += "\n- **" + constraint.key + "** (*" + constraint.severity + "*) " + constraint.human.replace(
-                        "\\n",
-                        "\n"
-                    )
-                }
-            }
-        }
-
-        return description
-    }
-
-    private fun doDisplay(key : String) : Boolean {
-        if (key.startsWith("ext")) return false
-        if (key.startsWith("ele")) return false
-        if (key.startsWith("dom")) return false
-        return true
-    }
-
-    private fun addResoureTag(openApi: OpenAPI,resourceType: String?, profile: String?) {
+    private fun addResoureTag(
+        openApi: OpenAPI,
+        resourceType: String?,
+        profile: String?,
+        enhance: Boolean,
+        documentation: String?
+    ) {
         // potential flaw here if multiple profiles are used.
         for (tags in openApi.tags) {
             if (tags.name.equals(resourceType)) return
         }
         // Try using schema for describing the profile .
-        addFhirResourceSchema(openApi,resourceType,profile)
+        addFhirResourceSchema(openApi,resourceType,profile, enhance)
         val resourceTag = Tag()
         resourceTag.name = resourceType
-
-        //addFhirResourceSchema(openApi, resourceType, nextResource.profile)
-
-        if (profile != null) {
-            resourceTag.extensions = mutableMapOf<String,Any>()
-            resourceTag.extensions.put("x-HL7-FHIR-Profile",profile)
-            val idStr = getProfileName(profile)
-            val documentation = getDocumentationPath(profile)
-            resourceTag.description = "" //""Resource (schema): [FHIR $resourceType](https://www.hl7.org/fhir/$resourceType.html)"
-
-            var profileDef = getBaseProfile(profile)
-
-            if (profileDef !=null) {
-                if (profileDef.hasDescription()) {
-                    resourceTag.description += "\n\n "+profileDef.description
-                }
-                if (profileDef.hasPurpose()) {
-                    resourceTag.description += "\n\n "+profileDef.purpose
-                }
+        if (documentation !== null) resourceTag.description = documentation
+      /*  if (enhance) {
+            if (resourceTag.description == null) {
+                resourceTag.description = ""
+            } else {
+                resourceTag.description += "\n\n "
             }
 
-            resourceTag.description += "\n\n Profile (constraints): [$idStr]($documentation)"
-            resourceTag.description += "\n\n" + getProfileDescription(profile)
+            resourceTag.description += "Base Definition: [$resourceType](https://hl7.org/fhir/R4/$resourceType)"
 
-            profileDef = getProfile(profile)
+            if (profile != null) {
+                resourceTag.extensions = mutableMapOf<String, Any>()
+                resourceTag.extensions.put("x-HL7-FHIR-Profile", profile)
+                val idStr = getProfileName(profile)
+                val documentation = getDocumentationPath(profile)
 
-            if (profileDef !=null) {
-
-                if (profileDef.hasDescription()) {
-                    resourceTag.description += "\n\n "+profileDef.description
-                }
-                if (profileDef.hasPurpose()) {
-                    resourceTag.description += "\n\n "+profileDef.purpose
-                }
+                resourceTag.description += " Profile: [$idStr]($documentation)"
             }
-
-        } else {
-            resourceTag.description = "Resource type: $resourceType"
         }
+*/
         openApi.addTagsItem(resourceTag)
     }
 
-    fun generateMarkdown(profile :String) : String {
-        var mainDescription = ""
-        var subDescription = ""
-        var index = ""
+    fun getDocumentationPath(profile: String?) : String {
+        if (profile == null) return ""
+        // Only process UK profiles
+        if (!profile.contains("https://fhir.nhs.uk/")
+            && !profile.contains("https://fhir.hl7.org.uk")) return profile
 
-
-        if (profile != null) {
-            val structureDefinition = getProfile(profile)
-            if (structureDefinition is StructureDefinition) {
-
-                if (structureDefinition.hasDescription()) {
-                    mainDescription += "\n\n " + structureDefinition.description
-                }
-                if (structureDefinition.hasPurpose()) {
-                    mainDescription += "\n\n " + structureDefinition.purpose
-                }
-
-                for (element in structureDefinition.snapshot.element) {
-                    val paths = element.path.split(".")
-                    if (
-                        element.hasMustSupport() || element.hasFixed() || (element.hasSliceName() && !paths[paths.size-1].equals("extension"))
-                                || element.id.split(".").size == 1) {
-                        val paths = element.id.split(".")
-                        var title = ""
-
-
-                        if (paths.size>1){
-                            for (i in 2..paths.size) {
-                                if (title.isNotEmpty()) title += "."
-                                title += paths[i-1]
-                            }
-                            index += "\n- <a href=\"#"+title+"\">"+title+"</a>"
-                            subDescription += "\n\n<a name=\""+title+"\"></a>\n ## "+title
-                            subDescription += getElementDescription(element)
-                        } else {
-                            mainDescription += getElementDescription(element)
-                        }
-
-
-
-                    }
-                }
+        val configurationInputStream = ClassPathResource("manifest.json").inputStream
+        var path = profile
+        for(guide in fhirPackage) {
+            if (!guide.version.contains("0.0.0") && (
+                        guide.packageName.contains("england") ||
+                                guide.packageName.contains("ukcore")
+                        )) {
+                path = "https://simplifier.net/resolve?fhirVersion=R4&scope="+ guide.packageName  + "@" + guide.version + "&canonical="+profile
             }
         }
-        return mainDescription + "\n\n" + index + subDescription
+        if (path == null) return ""
+        return path
     }
 
 
 
-    private fun getPackageCanonicalUrl(profile : String, npmPackage: NpmPackage?) : String {
-        val npm= npmPackage?.npm?.get("name").toString().replace("\"","") + "@" + npmPackage?.npm?.get("version").toString().replace("\"","")
-        return " "+ npm + "&canonical="+ profile.replace("|","&#124;")
-    }
-    private fun getDocumentationPathNpm(profile : String, npmPackage : NpmPackage) : String {
-        return getPackageCanonicalUrl(profile,npmPackage)
-    }
-    private fun getCanonicalUrl(resourceUrl : String ) :String {
-        val npm = npmPackages?.get(npmPackages.size-1) // get last package
-        return getPackageCanonicalUrl(resourceUrl, npm)
-    }
+
 
 }

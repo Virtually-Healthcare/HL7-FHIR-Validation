@@ -1,4 +1,4 @@
-package uk.nhs.england.fhirvalidator.service
+package uk.nhs.england.fhirvalidator.service.oas
 
 //import io.swagger.models.parameters.QueryParameter
 import ca.uhn.fhir.context.FhirContext
@@ -14,22 +14,183 @@ import io.swagger.v3.oas.models.examples.Example
 import io.swagger.v3.oas.models.media.ArraySchema
 import io.swagger.v3.oas.models.media.MediaType
 import io.swagger.v3.oas.models.parameters.QueryParameter
+import mu.KLogging
+import org.apache.commons.text.StringEscapeUtils
 import org.hl7.fhir.instance.model.api.IBaseResource
 import org.hl7.fhir.r4.model.*
+import org.hl7.fhir.r4.model.CapabilityStatement.TypeRestfulInteraction.READ
+import org.hl7.fhir.r4.model.CapabilityStatement.TypeRestfulInteraction.SEARCHTYPE
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.stereotype.Service
+import uk.nhs.england.fhirvalidator.service.interactions.FHIRMessage
+import uk.nhs.england.fhirvalidator.interceptor.CapabilityStatementApplier
+import uk.nhs.england.fhirvalidator.service.SearchParameterSupport
+import java.util.*
 
 @Service
-class VerifyOAS(@Qualifier("R4") private val ctx: FhirContext?,
-                @Qualifier("SupportChain") private val supportChain: IValidationSupport,
-                private val searchParameterSupport : SearchParameterSupport,
-                private val fhirValidator: FhirValidator,
-                private val messageDefinitionApplier: MessageDefinitionApplier,
-                private val capabilityStatementApplier: CapabilityStatementApplier)
+class OpenAPItoCapabilityStatementConversion(@Qualifier("R4") private val ctx: FhirContext?,
+                                             @Qualifier("SupportChain") private val supportChain: IValidationSupport,
+                                             private val searchParameterSupport : SearchParameterSupport,
+                                             private val fhirValidator: FhirValidator,
+                                             private val FHIRMessage: FHIRMessage,
+                                             private val capabilityStatementApplier: CapabilityStatementApplier
+)
 {
 
    // var implementationGuideParser: ImplementationGuideParser? = ImplementationGuideParser(ctx!!)
     val objectMapper = ObjectMapper()
+    companion object : KLogging()
+
+    fun convert(openAPI : OpenAPI) : CapabilityStatement {
+        var capabilityStatement = CapabilityStatement()
+        capabilityStatement.status = Enumerations.PublicationStatus.UNKNOWN
+        capabilityStatement.fhirVersion = Enumerations.FHIRVersion._4_0_1
+        capabilityStatement.format.add(CodeType("application/fhir+json"))
+        capabilityStatement.kind = CapabilityStatement.CapabilityStatementKind.REQUIREMENTS
+        capabilityStatement.date = Date()
+
+        var rest =CapabilityStatement.CapabilityStatementRestComponent()
+        rest.mode = CapabilityStatement.RestfulCapabilityMode.SERVER
+        capabilityStatement.rest.add(rest)
+        val outcomes = mutableListOf<OperationOutcome.OperationOutcomeIssueComponent>()
+        if (openAPI.info !== null) {
+            capabilityStatement.title = openAPI.info.title
+            capabilityStatement.description = escapeMarkdown(openAPI.info.description)
+        }
+        for (apiPaths in openAPI.paths) {
+            // To cope with eRS OAS
+            if (apiPaths.key !== null && (
+                    apiPaths.key.contains("STU3") ||
+                            apiPaths.key.contains("STU2")
+                    )) continue;
+            var path = apiPaths.key.removePrefix("/FHIR/R4")
+            path = path.removePrefix("/")
+            val paths = path.split("/")
+            var resourceType = paths[0]
+            var multiPathParameter : CapabilityStatement.CapabilityStatementRestResourceSearchParamComponent? = null
+            for(it in paths) {
+                if (!it.contains("{") && !it.contains("$") && !it.startsWith("_")) {
+                    if (it !== resourceType && resourceType.equals("Patient")) {
+                        multiPathParameter = CapabilityStatement.CapabilityStatementRestResourceSearchParamComponent()
+                        multiPathParameter.name = "patient"
+                        val extension = Extension().setUrl("http://hl7.org/fhir/StructureDefinition/capabilitystatement-expectation")
+                        extension.setValue(CodeType().setValue("SHALL"))
+                        multiPathParameter.type = Enumerations.SearchParamType.TOKEN
+                        multiPathParameter.extension.add(extension)
+                    }
+                    resourceType = it
+                }
+            }
+
+            var resource : CapabilityStatement.CapabilityStatementRestResourceComponent? = null
+
+            rest.resource.forEach {
+                if (it.type.equals(resourceType)) {
+                    resource = it
+                }
+            }
+            if (resource == null) {
+                resource = CapabilityStatement.CapabilityStatementRestResourceComponent().setType(resourceType)
+                if (apiPaths.value !== null && apiPaths.value.description !== null) {
+                    resource!!.documentation = apiPaths.value.description
+                }
+                rest.addResource(resource)
+
+            }
+            var operation = ""
+            if (paths.size > 1) operation = paths[1]
+            if (paths[0].startsWith("$")) operation = paths[0]
+
+            if (!resourceType.startsWith("$") && !resourceType.equals("metadata")) {
+                val codeSystem = supportChain.fetchCodeSystem("http://hl7.org/fhir/resource-types")
+
+            }
+            if (operation.isNotEmpty() && operation.startsWith("$")) {
+                val operationDefinition = getOperationDefinition(operation)
+
+            }
+            if (operation.isNotEmpty() && operation.startsWith("_search")) {
+               // TODO
+            }
+
+            // check all parameters
+            if (apiPaths.value.get != null && apiPaths.value.get.parameters != null) {
+                var hasParameters = false
+                for (apiParameter in apiPaths.value.get.parameters) {
+                    if (apiParameter is QueryParameter) {
+                        hasParameters = true
+                        val searchParam = CapabilityStatement.CapabilityStatementRestResourceSearchParamComponent()
+                        searchParam.name = apiParameter.name
+                        if (apiParameter.description !== null) {
+                            searchParam.documentation = escapeMarkdown(apiParameter.description)
+                        }
+                        if (apiParameter.required !== null && apiParameter.required) {
+                            val extension = Extension().setUrl("http://hl7.org/fhir/StructureDefinition/capabilitystatement-expectation")
+                            extension.setValue(CodeType().setValue("SHALL"))
+                            searchParam.extension.add(extension)
+                        }
+
+
+                        when (apiParameter.schema.type) {
+                            "string" -> {
+                                searchParam.type = Enumerations.SearchParamType.STRING
+                            }
+                            "boolean" -> {
+                                searchParam.type = Enumerations.SearchParamType.STRING
+                            }
+                            "integer" -> {
+                                searchParam.type = Enumerations.SearchParamType.NUMBER
+                            }
+                            "array" -> {
+                                searchParam.type = Enumerations.SearchParamType.STRING
+                            }
+                            else ->{
+                                logger.info(searchParam.name + " type= " + apiParameter.schema.type )
+                                searchParam.type = Enumerations.SearchParamType.STRING
+                            }
+                        }
+                        when (apiParameter.schema.format) {
+                            "string" -> {
+                                searchParam.type = Enumerations.SearchParamType.STRING
+                            }
+                            "token" -> {
+                                searchParam.type = Enumerations.SearchParamType.TOKEN
+                            }
+                            "date" -> {
+                                searchParam.type = Enumerations.SearchParamType.DATE
+                            }
+                            "number" -> {
+                                searchParam.type = Enumerations.SearchParamType.NUMBER
+                            }
+                            "reference" -> {
+                                searchParam.type = Enumerations.SearchParamType.REFERENCE
+                            }
+                            else ->{
+                                logger.info(searchParam.name + " format= " + apiParameter.schema.format)
+                                searchParam.type = Enumerations.SearchParamType.STRING
+                            }
+                        }
+
+                        if (resource !== null) resource!!.searchParam.add(searchParam)
+                    }
+                }
+                var interaction = CapabilityStatement.ResourceInteractionComponent()
+                if (hasParameters || multiPathParameter !== null ) {
+                    interaction.setCode(SEARCHTYPE)
+                    if (multiPathParameter !== null && resource !== null ) {
+                        resource!!.searchParam.add(multiPathParameter)
+                    }
+
+                } else {
+                    interaction.setCode(READ)
+                }
+                if (apiPaths.value.get.description !== null) interaction.documentation = escapeMarkdown(apiPaths.value.get.description)
+                resource?.interaction?.add(interaction)
+
+            }
+        }
+        return capabilityStatement
+    }
 
     fun validate(openAPI : OpenAPI) : List<OperationOutcome.OperationOutcomeIssueComponent> {
         // check all examples validate
@@ -37,7 +198,7 @@ class VerifyOAS(@Qualifier("R4") private val ctx: FhirContext?,
         val outcomes = mutableListOf<OperationOutcome.OperationOutcomeIssueComponent>()
 
         if (openAPI.info.extensions == null || openAPI.info.extensions.get("x-HL7-FHIR-NpmPackages") == null) {
-            addOperationIssue(outcomes,OperationOutcome.IssueType.BUSINESSRULE, OperationOutcome.IssueSeverity.WARNING, "No FHIR package extension found")
+            addOperationIssue(outcomes,OperationOutcome.IssueType.BUSINESSRULE, OperationOutcome.IssueSeverity.INFORMATION, "No FHIR package extension found in the OAS specification. This a comment, not an error")
                 .location.add(StringType("OAS: info.extensions.x-HL7-FHIR-NpmPackages"))
         }
         for (apiPaths in openAPI.paths) {
@@ -148,13 +309,31 @@ class VerifyOAS(@Qualifier("R4") private val ctx: FhirContext?,
 
                                             operationIssue.location.add(StringType("OAS: "+apiPaths.key + "/get/" + apiParameter.name+"/schema/type"))
                                         }
-                                        if (apiParameter.schema is ArraySchema && apiParameter.schema.format.equals("token") && apiParameter.explode) {
-                                            val operationIssue = addOperationIssue(outcomes,OperationOutcome.IssueType.CODEINVALID, OperationOutcome.IssueSeverity.ERROR,"For array of format = token, explode should be set to false")
-                                            operationIssue.location.add(StringType("OAS: "+apiPaths.key + "/get/" + apiParameter.name+"/schema/type"))
-                                        }
-                                        if (apiParameter.schema is ArraySchema && apiParameter.schema.format.equals("date") && !apiParameter.explode) {
-                                            val operationIssue = addOperationIssue(outcomes,OperationOutcome.IssueType.CODEINVALID, OperationOutcome.IssueSeverity.ERROR,"For array of format = date, explode should be set to true")
-                                            operationIssue.location.add(StringType("OAS: "+apiPaths.key + "/get/" + apiParameter.name+"/schema/type"))
+                                        if (apiParameter.schema is ArraySchema && apiParameter.schema.format !== null) {
+                                            if (apiParameter.schema.format.equals(
+                                                    "token"
+                                                ) && apiParameter.explode
+                                            ) {
+                                                val operationIssue = addOperationIssue(
+                                                    outcomes,
+                                                    OperationOutcome.IssueType.CODEINVALID,
+                                                    OperationOutcome.IssueSeverity.ERROR,
+                                                    "For array of format = token, explode should be set to false"
+                                                )
+                                                operationIssue.location.add(StringType("OAS: " + apiPaths.key + "/get/" + apiParameter.name + "/schema/type"))
+                                            }
+                                            if (apiParameter.schema.format.equals(
+                                                    "date"
+                                                ) && !apiParameter.explode
+                                            ) {
+                                                val operationIssue = addOperationIssue(
+                                                    outcomes,
+                                                    OperationOutcome.IssueType.CODEINVALID,
+                                                    OperationOutcome.IssueSeverity.ERROR,
+                                                    "For array of format = date, explode should be set to true"
+                                                )
+                                                operationIssue.location.add(StringType("OAS: " + apiPaths.key + "/get/" + apiParameter.name + "/schema/type"))
+                                            }
                                         }
                                     }
                                     Enumerations.SearchParamType.NUMBER -> {
@@ -351,8 +530,8 @@ class VerifyOAS(@Qualifier("R4") private val ctx: FhirContext?,
 
     fun validateResource(resource: IBaseResource, profile: String?): OperationOutcome? {
         if (profile != null) return fhirValidator.validateWithResult(resource, ValidationOptions().addProfile(profile)).toOperationOutcome() as? OperationOutcome
-        capabilityStatementApplier.applyCapabilityStatementProfiles(resource)
-        val messageDefinitionErrors = messageDefinitionApplier.applyMessageDefinition(resource)
+        capabilityStatementApplier.applyCapabilityStatementProfiles(resource, false)
+        val messageDefinitionErrors = FHIRMessage.applyMessageDefinition(resource)
         if (messageDefinitionErrors != null) {
             return messageDefinitionErrors
         }
@@ -372,5 +551,8 @@ class VerifyOAS(@Qualifier("R4") private val ctx: FhirContext?,
         }
 
         return listOf(inputResource)
+    }
+    fun escapeMarkdown(markdown : String ) : String {
+        return StringEscapeUtils.escapeHtml4(markdown)
     }
 }

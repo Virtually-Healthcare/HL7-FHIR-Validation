@@ -6,23 +6,25 @@ import ca.uhn.fhir.context.support.ValidationSupportContext
 import ca.uhn.fhir.model.api.IElement
 import ca.uhn.fhir.rest.annotation.Operation
 import ca.uhn.fhir.rest.annotation.ResourceParam
-import ca.uhn.fhir.rest.server.exceptions.UnprocessableEntityException
+import jakarta.servlet.http.HttpServletRequest
+import jakarta.servlet.http.HttpServletResponse
 import org.hl7.fhir.common.hapi.validation.support.ValidationSupportChain
 import org.hl7.fhir.instance.model.api.IBaseResource
 import org.hl7.fhir.r4.model.*
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.stereotype.Component
 import uk.nhs.england.fhirvalidator.service.CodingSupport
-import uk.nhs.england.fhirvalidator.service.OpenAPIParser
 import java.net.URI
 import java.nio.charset.StandardCharsets
 import java.text.SimpleDateFormat
-import javax.servlet.http.HttpServletRequest
-import javax.servlet.http.HttpServletResponse
 import kotlin.reflect.KClass
 import kotlin.reflect.full.memberProperties
 import kotlin.reflect.jvm.isAccessible
 
+/*
+
+DO NOT USE
+ */
 
 @Component
 class FHIRtoTextProvider(@Qualifier("R4") private val fhirContext: FhirContext,
