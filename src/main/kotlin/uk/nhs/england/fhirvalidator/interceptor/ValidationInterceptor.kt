@@ -21,7 +21,7 @@ import java.io.IOException
 import java.io.InputStreamReader
 import java.net.HttpURLConnection
 import java.net.URL
-import javax.servlet.http.HttpServletRequest
+import jakarta.servlet.http.HttpServletRequest
 
 
 @Interceptor
@@ -37,7 +37,8 @@ class ValidationInterceptor(val ctx : FhirContext, val messageProperties: Messag
     fun incomingRequest(request: HttpServletRequest, requestDetails: RequestDetails?, resource: IBaseResource?) :Boolean {
 
         // Don't validate validate!
-        if ((request.method.equals("POST") || request.method.equals("PUT")) && !request.pathInfo.startsWith("/$") ) {
+        if ((request.method.equals("POST") || request.method.equals("PUT"))
+            && !request.pathInfo.contains("/$") ) {
             val encoding = RestfulServerUtils.determineRequestEncodingNoDefault(requestDetails)
             if (encoding == null) {
                 log.trace("Incoming request does not appear to be FHIR, not going to validate")
@@ -56,10 +57,10 @@ class ValidationInterceptor(val ctx : FhirContext, val messageProperties: Messag
                         for (issue in validationResult.issue) {
                             if (issue.hasSeverity() && (
                                     issue.severity.equals(OperationOutcome.IssueSeverity.ERROR) ||
-                                            issue.severity.equals(OperationOutcome.IssueSeverity.FATAL) ||
-                                            issue.severity.equals(OperationOutcome.IssueSeverity.WARNING)
+                                            issue.severity.equals(OperationOutcome.IssueSeverity.FATAL)
                                         )) {
                                 log.debug(issue.diagnostics)
+                                if (issue.diagnostics.contains("Validation failed for")) continue
                                 fail(validationResult)
                             }
                         }

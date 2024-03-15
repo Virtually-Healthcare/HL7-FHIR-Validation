@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: "2010-09-09"
-Description: NHS Digital IOPS FHIR Services
+Description: NHS England Interoperability Standards FHIR Services
 
 Parameters:
   OntoClientId:

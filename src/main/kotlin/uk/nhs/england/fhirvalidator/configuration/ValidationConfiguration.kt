@@ -7,9 +7,12 @@ import ca.uhn.fhir.context.support.ValidationSupportContext
 import ca.uhn.fhir.rest.server.exceptions.UnprocessableEntityException
 import ca.uhn.fhir.validation.FhirValidator
 import com.fasterxml.jackson.databind.ObjectMapper
+import io.swagger.v3.oas.models.examples.Example
 import mu.KLogging
 import org.hl7.fhir.common.hapi.validation.support.*
 import org.hl7.fhir.common.hapi.validation.validator.FhirInstanceValidator
+import org.hl7.fhir.r4.model.CapabilityStatement
+import org.hl7.fhir.r4.model.ImplementationGuide
 import org.hl7.fhir.r4.model.StructureDefinition
 import org.hl7.fhir.utilities.json.model.JsonProperty
 import org.hl7.fhir.utilities.npm.NpmPackage
@@ -20,6 +23,8 @@ import org.springframework.context.annotation.Configuration
 import org.springframework.core.io.ClassPathResource
 import org.springframework.security.oauth2.client.OAuth2AuthorizedClientManager
 import uk.nhs.england.fhirvalidator.awsProvider.*
+import uk.nhs.england.fhirvalidator.model.DependsOn
+import uk.nhs.england.fhirvalidator.model.FHIRPackage
 import uk.nhs.england.fhirvalidator.model.SimplifierPackage
 import uk.nhs.england.fhirvalidator.service.ImplementationGuideParser
 import uk.nhs.england.fhirvalidator.util.AccessTokenInterceptor
@@ -34,6 +39,7 @@ import java.time.Duration
 import java.time.Instant
 import java.util.*
 import java.util.function.Predicate
+import kotlin.collections.ArrayList
 
 
 @Configuration
@@ -46,8 +52,13 @@ open class ValidationConfiguration(
 ) {
     companion object : KLogging()
 
-    var npmPackages: List<NpmPackage>? = null
+    var npmPackages: List<NpmPackage> = emptyList()
 
+    var fhirPackage = mutableListOf<FHIRPackage>()
+    @Bean
+    open fun fhirPackages() : List<FHIRPackage> {
+        return this.fhirPackage
+    }
     @Bean
     open fun validator(@Qualifier("R4") fhirContext: FhirContext, instanceValidator: FhirInstanceValidator): FhirValidator {
         return fhirContext.newValidator().registerValidatorModule(instanceValidator)
@@ -81,17 +92,69 @@ open class ValidationConfiguration(
             switchedTerminologyServiceValidationSupport
         )
         if (messageProperties.getAWSValidationSupport()) supportChain.addValidationSupport( AWSValidationSupport(fhirContext, awsQuestionnaire,awsCodeSystem,awsValueSet, awsConceptMap))
-        getPackages()
+        val manifest = getPackages()
         if (npmPackages != null) {
+            /*
             npmPackages!!
                 .filter { !it.name().equals("hl7.fhir.r4.examples") }
                 .map(implementationGuideParser::createPrePopulatedValidationSupport)
 
                 .forEach(supportChain::addValidationSupport)
 
+             */
+            val npms = npmPackages!!.filter { !it.name().equals("hl7.fhir.r4.examples") }
+            for (pckg in npms) {
+                val support = implementationGuideParser.createPrePopulatedValidationSupport(pckg)
+                supportChain.addValidationSupport(support)
+                var description = pckg.description()
+                if (description == null) description = ""
+                var derived = true
+                if (manifest !==null) {
+                    manifest.forEach {
+                        if (it.packageName.equals(pckg.name())) derived = false
+                    }
+                }
+                val dependsOn = ArrayList<DependsOn>()
+                for (dependency in pckg.dependencies()) {
+                    val pckgStrs = dependency.split("#")
+                    if (pckgStrs.size>1) {
+                        // dummy value for now
+                        var uri = "https://example.fhir.org/ImplementationGuide/" + pckgStrs[0] + "|" + pckgStrs[1]
+                        if (pckgStrs[0].contains("hl7.fhir.r4.core")) uri = "https://hl7.org/fhir/R4/"
+                        if (pckgStrs[0].contains("ukcore")) uri = "https://simplifier.net/guide/ukcoreversionhistory"
+                        if (pckgStrs[0].contains("nhsengland")) uri = "https://simplifier.net/guide/nhs-england-implementation-guide-version-history"
+                        val depends = DependsOn(
+                            pckgStrs[0],
+                            pckgStrs[1],
+                            uri
+                        )
+                        dependsOn.add(depends)
+                    }
+                }
+                var packUrl = pckg.url()
+                if (pckg.name().contains("hl7.fhir.r4.core")) packUrl = "https://hl7.org/fhir/R4/"
+                if (pckg.name().contains("ukcore")) packUrl = "https://simplifier.net/guide/ukcoreversionhistory"
+                if (pckg.name().contains("nhsengland")) packUrl = "https://simplifier.net/guide/nhs-england-implementation-guide-version-history"
+                var newPckg = FHIRPackage(pckg.name(),pckg.version(),description,packUrl,derived,dependsOn)
+                this.fhirPackage.add(newPckg)
+            }
             //Initialise now instead of when the first message arrives
             generateSnapshots(supportChain)
             supportChain.fetchCodeSystem("http://snomed.info/sct")
+            // Correct dependencies canonical urls
+            for (pkg in this.fhirPackage) {
+                if (pkg.canonicalUri !== null && pkg.derived) {
+                    for (otherPkg in this.fhirPackage) {
+                        if (!otherPkg.packageName.equals(pkg.packageName) && !otherPkg.version.equals(pkg.version) && otherPkg.dependencies !== null) {
+                            for (depencyPkg in otherPkg.dependencies) {
+                                if (depencyPkg.packageName.equals(pkg.packageName) && depencyPkg.version.equals(pkg.version)) {
+                                    depencyPkg.canonicalUri = pkg.canonicalUri
+                                }
+                            }
+                        }
+                    }
+                }
+            }
             // packages have been processed so remove them
             npmPackages = emptyList()
             return supportChain
@@ -208,15 +271,21 @@ open class ValidationConfiguration(
     }
 
 
-    open fun getPackages() {
+    open fun getPackages() :Array<SimplifierPackage>? {
         var manifest : Array<SimplifierPackage>? = null
-        if (fhirServerProperties.ig != null   ) {
-            manifest = arrayOf(SimplifierPackage(fhirServerProperties.ig!!.name, fhirServerProperties.ig!!.version))
+        if (fhirServerProperties.igs != null && !fhirServerProperties.igs!!.isEmpty()   ) {
+            val packages= fhirServerProperties.igs!!.split(",")
+            val manifest2 = arrayListOf<SimplifierPackage>()
+            packages.forEachIndexed{ index, pkg  ->
+                manifest2.add(SimplifierPackage(pkg.substringBefore("#"),pkg.substringAfter("#")))
+            }
+            manifest = manifest2.toTypedArray()
         } else {
             val configurationInputStream = ClassPathResource("manifest.json").inputStream
             manifest = objectMapper.readValue(configurationInputStream, Array<SimplifierPackage>::class.java)
         }
-        val packages = arrayListOf<NpmPackage>()
+
+        val packages = HashMap<String, NpmPackage>()
         if (manifest == null) throw UnprocessableEntityException("Error processing IG manifest")
         for (packageNpm in manifest ) {
             val packageName = packageNpm.packageName + "-" + packageNpm.version+ ".tgz"
@@ -229,13 +298,26 @@ open class ValidationConfiguration(
             }
             if (inputStream == null) {
                 val downloadedPackages = downloadPackage(packageNpm.packageName,packageNpm.version)
-                packages.addAll(downloadedPackages)
+                for (downloadpackage in downloadedPackages) {
+                    val name = downloadpackage.name()+'#'+downloadpackage.version()
+                    if (packages.get(name) == null) {
+                        packages.put(name,downloadpackage)
+                    } else {
+                        logger.info("package "+name + " already present")
+                    }
+                }
             } else {
                 logger.info("Using local cache for {} - {}",packageNpm.packageName, packageNpm.version)
-                packages.add(NpmPackage.fromPackage(inputStream))
+                val downloadpackage = NpmPackage.fromPackage(inputStream)
+                val name = downloadpackage.name()+'#'+downloadpackage.version()
+                if (packages.get(name) == null) {
+                    packages.put(name,downloadpackage)
+                } else {
+                    logger.info("package "+name + " already present")
+                }
             }
         }
-        this.npmPackages = packages
+        this.npmPackages = packages.values.toList()
         /*
         if (fhirServerProperties.ig != null && !fhirServerProperties.ig!!.isEmpty()) {
             return downloadPackage(fhirServerProperties.ig!!)
@@ -247,6 +329,7 @@ open class ValidationConfiguration(
             .toList()
 
          */
+        return manifest
     }
 
     open fun downloadPackage(name : String, version : String) : List<NpmPackage> {
@@ -334,8 +417,13 @@ open class ValidationConfiguration(
     }
 
     private fun getBase(profile : String,supportChain: IValidationSupport): String? {
-        val structureDefinition : StructureDefinition=
-            supportChain.fetchStructureDefinition(profile) as StructureDefinition;
+        val structureDefinitionResource = supportChain.fetchStructureDefinition(profile)
+        if (structureDefinitionResource === null) {
+            logger.error("Issue retrieving " + profile)
+            return null;
+        }
+        val structureDefinition = structureDefinitionResource as StructureDefinition;
+
         if (structureDefinition.hasBaseDefinition()) {
             var baseProfile = structureDefinition.baseDefinition
             if (baseProfile.contains(".uk")) baseProfile = getBase(baseProfile, supportChain)

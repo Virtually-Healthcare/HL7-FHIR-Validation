@@ -9,15 +9,16 @@ import com.amazonaws.services.sqs.model.AmazonSQSException
 import com.amazonaws.services.sqs.model.CreateQueueRequest
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Qualifier
-import org.springframework.boot.web.servlet.FilterRegistrationBean
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.web.client.RestTemplate
 import org.springframework.web.cors.CorsConfiguration
+import org.springframework.web.cors.CorsConfigurationSource
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource
+import uk.nhs.england.fhirvalidator.interceptor.BasicAuthInterceptor
 import uk.nhs.england.fhirvalidator.interceptor.CognitoAuthInterceptor
-import uk.nhs.england.fhirvalidator.util.CorsFilter
-import javax.servlet.Filter
+import java.util.*
+
 
 @Configuration
 open class ApplicationConfiguration(
@@ -25,6 +26,7 @@ open class ApplicationConfiguration(
 ) {
 
     private val logger = LoggerFactory.getLogger(MessageProperties::class.java)
+
     @Bean("R4")
     open fun fhirR4Context(): FhirContext {
         val fhirContext = FhirContext.forR4Cached()
@@ -51,25 +53,25 @@ open class ApplicationConfiguration(
         return RestTemplate()
     }
 
-    @Bean
-    open fun corsFilter(): FilterRegistrationBean<*>? {
-        val source = UrlBasedCorsConfigurationSource()
-        val config = CorsConfiguration()
-        config.allowCredentials = true
-        config.addAllowedOrigin("*")
-        config.addAllowedHeader("*")
-        config.addAllowedMethod("*")
-        source.registerCorsConfiguration("/**", config)
-        val bean: FilterRegistrationBean<*> = FilterRegistrationBean<Filter>(CorsFilter())
-        bean.order = 0
-        return bean
-    }
 
     @Bean
-    fun getAWSclient(cognitoIdpInterceptor: CognitoAuthInterceptor?, messageProperties: MessageProperties, @Qualifier("R4") ctx : FhirContext): IGenericClient? {
+    fun getAWSclient(
+        cognitoIdpInterceptor: CognitoAuthInterceptor?,
+        messageProperties: MessageProperties,
+        @Qualifier("R4") ctx: FhirContext
+    ): IGenericClient? {
         val client: IGenericClient = ctx.newRestfulGenericClient(messageProperties.getCdrFhirServer())
         client.registerInterceptor(cognitoIdpInterceptor)
         return client
+    }
+
+    @Bean
+    fun getBasicAuth(
+        messageProperties: MessageProperties,
+        fhirServerProperties: FHIRServerProperties,
+        @Qualifier("R4") ctx: FhirContext
+    ): BasicAuthInterceptor {
+        return BasicAuthInterceptor(messageProperties, fhirServerProperties, ctx)
     }
 
     @Bean
@@ -98,6 +100,8 @@ open class ApplicationConfiguration(
             return null
         }
     }
+
+
 
 
 }
