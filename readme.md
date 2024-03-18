@@ -18,6 +18,7 @@ c. Optionally validate using the NHS England Ontology Service (configured via en
 
 The configuration is aimed at supporting different use cases. For example the lambda version with no ontology support is aimed at performing basic FHIR validation checks. This may just be FHIR core and schema validation but can also test against UKCore profiles.
 
+
 ## Docker Image 
 
 **Experimental** 
@@ -100,8 +101,6 @@ AWS FHIR Works username
 
 Url of AWS FHIRWorks in API Gateway
 https://cnuc9zdola.execute-api.eu-west-2.amazonaws.com/dev
-
-
 
 
 
