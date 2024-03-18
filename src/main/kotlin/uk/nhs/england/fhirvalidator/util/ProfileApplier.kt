@@ -10,10 +10,13 @@ fun getResourcesOfType(resource: IBaseResource, resourceType: String?): List<IBa
         matchingResources.add(resource)
     }
     if (resource is Bundle) {
-        resource.entry.stream()
-            .map { it.resource }
-            .filter { it.fhirType() == resourceType }
-            .forEach { matchingResources.add(it) }
+       val bundleEntries = resource.entry.map { it }
+        if (bundleEntries.any { it.resource is IBaseResource }) {
+            resource.entry.stream()
+                .map { it.resource }
+                .filter { it.fhirType() == resourceType }
+                .forEach { matchingResources.add(it) }
+        }
     }
     return matchingResources
 }
