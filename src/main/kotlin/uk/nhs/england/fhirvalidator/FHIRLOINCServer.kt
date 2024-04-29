@@ -14,6 +14,7 @@ import uk.nhs.england.fhirvalidator.configuration.MessageProperties
 import uk.nhs.england.fhirvalidator.interceptor.AWSAuditEventLoggingInterceptor
 import uk.nhs.england.fhirvalidator.interceptor.ValidationInterceptor
 import uk.nhs.england.fhirvalidator.providerLOINC.CodeSystemLOINCProvider
+import uk.nhs.england.fhirvalidator.providerLOINC.ConceptMapLOINCProvider
 import uk.nhs.england.fhirvalidator.providerLOINC.QuestionnaireProvider
 import uk.nhs.england.fhirvalidator.providerLOINC.ValueSetLOINCProvider
 import java.util.*
@@ -27,6 +28,7 @@ class FHIRLOINCServer(
     val questionnaireProvider: QuestionnaireProvider,
     val codeSystemLOINCProvider: CodeSystemLOINCProvider,
     val valueSetLOINCProvider: ValueSetLOINCProvider,
+    val conceptMapLOINCProvider: ConceptMapLOINCProvider,
     val fhirServerProperties: FHIRServerProperties,
     private val messageProperties: MessageProperties
 ) : RestfulServer(fhirContext) {
@@ -38,6 +40,7 @@ class FHIRLOINCServer(
         registerProvider(questionnaireProvider)
         registerProvider(codeSystemLOINCProvider)
         registerProvider(valueSetLOINCProvider)
+        registerProvider(conceptMapLOINCProvider)
 
         val awsAuditEventLoggingInterceptor =
             AWSAuditEventLoggingInterceptor(

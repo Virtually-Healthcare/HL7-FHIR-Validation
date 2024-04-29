@@ -25,7 +25,7 @@ fhir:
 services:
   R4: true
   STU3: true
-  LOINC: false
+  LOINC: true
   R4B: false
 
 ###Remote terminology validation:

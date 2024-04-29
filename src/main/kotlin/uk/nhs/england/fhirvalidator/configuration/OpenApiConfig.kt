@@ -39,6 +39,8 @@ open class OpenApiConfig(@Qualifier("R4") val ctx : FhirContext,
 
     var CONFORMANCE = "FHIR Package Queries"
 
+    var LOINC = "LOINC"
+
     var MEDICATION_DEFINITION = "Experimental - FHIR R4B Medication Definition"
     var EXPERIMENTAL = "Experimental"
     var ONTOLOGY = "Terminology Services"
@@ -599,7 +601,102 @@ open class OpenApiConfig(@Qualifier("R4") val ctx : FhirContext,
                 )
             oas.path("/FHIR/R4/CodeSystem/\$subsumes",subsumesItem)
         }
+        if (servicesProperties.LOINC) {
+            oas.addTagsItem(io.swagger.v3.oas.models.tags.Tag()
+                .name(LOINC)
+                .description("[LOINC Terminology Service using HL7® FHIR](https://loinc.org/fhir/)")
+            )
 
+            var pathItem = getPathItem(
+                getTerminologyTagName(LOINC),
+                "ValueSet",
+                "Value Set",
+                "url",
+                "http://loinc.org/vs/LL4027-0",
+                "This transaction is used by the Terminology Consumer to find value sets based on criteria it\n" +
+                        "provides in the query parameters of the request message, or to retrieve a specific value set. The\n" +
+                        "request is received by the Terminology Repository. The Terminology Repository processes the\n" +
+                        "request and returns a response of the matching value sets."
+            )
+            oas.path("/LOINC/R4/ValueSet", pathItem)
+
+            pathItem = getPathItem(
+                getTerminologyTagName(LOINC),
+                "ConceptMap",
+                "Concept Map",
+                "url",
+                "http://loinc.org/cm/loinc-parts-to-snomed-ct",
+                ""
+            )
+            oas.path("/LOINC/R4/ConceptMap", pathItem)
+
+            oas.path(
+                "/LOINC/R4/ValueSet/\$expand", PathItem()
+                    .get(
+                        Operation()
+                            .addTagsItem(getTerminologyTagName(LOINC))
+                            .summary("Expand a Value Set")
+                            .description(
+                                "This transaction is used by the Terminology Consumer to expand a given ValueSet to return the\n" +
+                                        "full list of concepts available in that ValueSet. The request is received by the Terminology\n" +
+                                        "Repository. The Terminology Repository processes the request and returns a response of the\n" +
+                                        "expanded ValueSet. \n\n" +
+                                        "FHIR Definition [expand](https://www.hl7.org/fhir/R4/operation-valueset-expand.html) "
+                            )
+                            .responses(getApiResponses())
+                            .addParametersItem(
+                                Parameter()
+                                    .name("url")
+                                    .`in`("query")
+                                    .required(false)
+                                    .style(Parameter.StyleEnum.SIMPLE)
+                                    .description("A canonical reference to a value set. The server must know the value set (e.g. it is defined explicitly in the server's value sets, or it is defined implicitly by some code system known to the server")
+                                    .schema(StringSchema().format("uri"))
+                                    .example("http://loinc.org/vs/LL4027-0")
+                            )
+                            .addParametersItem(
+                                Parameter()
+                                    .name("filter")
+                                    .`in`("query")
+                                    .required(false)
+                                    .style(Parameter.StyleEnum.SIMPLE)
+                                    .description("(EXPERIMENTAL - ValueSet must be in UKCore or NHSDigital IG) A text filter that is applied to restrict the codes that are returned (this is useful in a UI context).")
+                                    .schema(StringSchema())
+
+                            )
+                            .addParametersItem(
+                                Parameter()
+                                    .name("includeDesignations")
+                                    .`in`("query")
+                                    .required(false)
+                                    .style(Parameter.StyleEnum.SIMPLE)
+                                    .schema(BooleanSchema())
+
+                            )
+                            .addParametersItem(
+                                Parameter()
+                                    .name("elements")
+                                    .`in`("query")
+                                    .required(false)
+                                    .style(Parameter.StyleEnum.SIMPLE)
+                                    .schema(StringSchema())
+
+                            )
+                            .addParametersItem(
+                                Parameter()
+                                    .name("property")
+                                    .`in`("query")
+                                    .required(false)
+                                    .style(Parameter.StyleEnum.SIMPLE)
+                                    .schema(StringSchema())
+
+                            )
+                    )
+            )
+
+            // ITI 96 Query Code System
+
+        }
 
         if (servicesProperties.R4B) {
 
