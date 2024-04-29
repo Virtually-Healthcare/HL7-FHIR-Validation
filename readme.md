@@ -17,6 +17,10 @@ This service is built using [HL7 Validation and HAPI FHIR Libaries](https://hapi
 - [NHS England Terminology Server](https://digital.nhs.uk/services/terminology-server) to handle the security layer.
 - [FHIR Message](https://hl7.org/fhir/R4/messaging.html) validation using a FHIR MessageDefinition.
 
+## Related Projects
+
+- [validation-service-fhir-r4](https://github.com/NHSDigital/validation-service-fhir-r4) is used to perform operational FHIR Validation Service by [Electronic Prescription Service - FHIR API](https://digital.nhs.uk/developer/api-catalogue/electronic-prescription-service-fhir). This provides FHIR Validation via a **AWS Lambda** and is optimised for performance (it doesn't perform coding validation).  
+
 ## Configuration
 
 It has several configuration options: 
