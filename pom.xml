@@ -9,9 +9,9 @@
 		<relativePath/> <!-- lookup parent from repository -->
 	</parent>
 	<groupId>uk.nhs.england</groupId>
-	<artifactId>IOPS-FHIR-Validation-Service</artifactId>
+	<artifactId>FHIR-Validation</artifactId>
 	<version>7.0.3</version>
-	<name>IOPS-FHIR-Validation-Service</name>
+	<name>FHIR-Validation</name>
 	<description>HAPI FHIR Validator using Spring Boot</description>
 
 	<properties>
