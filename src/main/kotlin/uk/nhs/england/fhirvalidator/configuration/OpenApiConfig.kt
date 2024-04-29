@@ -696,6 +696,61 @@ open class OpenApiConfig(@Qualifier("R4") val ctx : FhirContext,
 
             // ITI 96 Query Code System
 
+            val lookupItem = PathItem()
+                .get(
+                    Operation()
+                        .addTagsItem(getTerminologyTagName(LOINC))
+                        .summary("Lookup a Code in a Value Set")
+                        .description(
+                            "This transaction is used by the Terminology Consumer to lookup a given code to return the full " +
+                                    "details. The request is received by the Terminology Repository. The Terminology Repository " +
+                                    "processes the request and returns a response of the code details as a Parameters Resource." +
+                                    "\n\nFHIR Definition [lookup](https://www.hl7.org/fhir/R4/operation-codesystem-lookup.html)"
+                        )
+                        .responses(getApiResponses())
+                        .addParametersItem(
+                            Parameter()
+                                .name("code")
+                                .`in`("query")
+                                .required(false)
+                                .style(Parameter.StyleEnum.SIMPLE)
+                                .description("The code that is to be located. If a code is provided, a system must be provided")
+                                .schema(StringSchema().format("code"))
+                                .example("LA4389-8")
+                        )
+                        .addParametersItem(
+                            Parameter()
+                                .name("system")
+                                .`in`("query")
+                                .required(false)
+                                .style(Parameter.StyleEnum.SIMPLE)
+                                .description("The system for the code that is to be located")
+                                .schema(StringSchema().format("url"))
+                                .example("http://loinc.org")
+                        )
+                        .addParametersItem(
+                            Parameter()
+                                .name("version")
+                                .`in`("query")
+                                .required(false)
+                                .style(Parameter.StyleEnum.SIMPLE)
+                                .description("The version of the system, if one was provided in the source data")
+                                .schema(StringSchema())
+                        )
+
+                       .addParametersItem(Parameter()
+                        .name("property")
+                        .`in`("query")
+                        .required(false)
+                        .style(Parameter.StyleEnum.SPACEDELIMITED)
+                        .explode(true)
+                        .description("A property that the client wishes to be returned in the output. If no properties are specified, the server chooses what to return.")
+                        .schema(StringSchema().format("code").maxItems(10)
+                        ))
+                )
+
+            oas.path("/LOINC/R4/CodeSystem/\$lookup", lookupItem)
+
         }
 
         if (servicesProperties.R4B) {

@@ -39,7 +39,9 @@ class CodeSystemLOINCProvider (@Qualifier("R4") private val fhirContext: FhirCon
     fun lookup (
         httpRequest : HttpServletRequest,
         @OperationParam(name = "code") code: String?,
-        @OperationParam(name = "system") system: String?
+        @OperationParam(name = "system") system: String?,
+        @OperationParam(name = "property") property: String?,
+        @OperationParam(name = "version") version: String?
     ) : Parameters? {
         val resource: Resource? = basicAuthInterceptor.readFromUrl(httpRequest.pathInfo,  httpRequest.queryString, null)
         return if (resource is Parameters) resource else null
