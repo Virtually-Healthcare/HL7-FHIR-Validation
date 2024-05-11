@@ -231,6 +231,19 @@ class ValueSetProvider (@Qualifier("R4") private val fhirContext: FhirContext,
                 @OperationParam(name = "elements") elements: StringOrListParam?,
                 @OperationParam(name = "property") property: StringOrListParam?): ValueSet? {
         if (url == null && valueSet == null) throw UnprocessableEntityException("Both resource and url can not be null")
+        if (url != null) {
+            logger.info(url.value)
+            if (url.value.startsWith("http://snomed.info/sct/")) {
+                val urlSplit = url.value.split("ecl")
+                var filVal : String? = null
+                if (filter != null) {
+                    filVal = filter.value
+                }
+                var ecl = urlSplit[1].uppercase().replace("%2F","")
+                ecl = ecl.replace("/","")
+                return eclExpand(ecl, filVal,null )
+            }
+        }
         var valueSetR4: ValueSet? = null;
         if (url != null) {
             var valueSets = url.let { search(it) }
