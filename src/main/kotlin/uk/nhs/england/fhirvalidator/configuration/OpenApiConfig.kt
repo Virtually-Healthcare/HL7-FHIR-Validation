@@ -406,7 +406,7 @@ open class OpenApiConfig(@Qualifier("R4") val ctx : FhirContext,
                 .get(
                     Operation()
                         .addTagsItem(getTerminologyTagName(ONTOLOGY))
-                        .summary("Lookup a Code in a Value Set")
+                        .summary("Lookup a Code in a Code System")
                         .description(
                             "This transaction is used by the Terminology Consumer to lookup a given code to return the full " +
                                     "details. The request is received by the Terminology Repository. The Terminology Repository " +
@@ -452,7 +452,7 @@ open class OpenApiConfig(@Qualifier("R4") val ctx : FhirContext,
                                 .description("The system for the code that is to be located")
                                 .schema(StringSchema().format("Coding"))
                         )
-                        .addParametersItem(
+                  /*      .addParametersItem(
                             Parameter()
                                 .name("date")
                                 .`in`("query")
@@ -469,7 +469,7 @@ open class OpenApiConfig(@Qualifier("R4") val ctx : FhirContext,
                                 .style(Parameter.StyleEnum.SIMPLE)
                                 .description("The requested language for display (see \$expand.displayLanguage)")
                                 .schema(StringSchema().format("code"))
-                        )
+                        ) */
                     /*      .addParametersItem(Parameter()
                         .name("property")
                         .`in`("query")

@@ -176,8 +176,15 @@ class ValueSetProvider (@Qualifier("R4") private val fhirContext: FhirContext,
         input.issueFirstRep.severity = OperationOutcome.IssueSeverity.INFORMATION
         if (code != null) {
             val conceptValidaton = ConceptValidationOptions()
+            var sysD = system
+            if (sysD !== null )  sysD = java.net.URLDecoder.decode(system, StandardCharsets.UTF_8.name())
+            var urlD = url
+            if (urlD !== null) urlD = java.net.URLDecoder.decode(url, StandardCharsets.UTF_8.name())
             var validationResult: CodeValidationResult? =
-                supportChain.validateCode(this.validationSupportContext, conceptValidaton, java.net.URLDecoder.decode(system, StandardCharsets.UTF_8.name()), code, display, java.net.URLDecoder.decode(url, StandardCharsets.UTF_8.name()))
+                supportChain.validateCode(this.validationSupportContext, conceptValidaton,
+                    sysD,
+                    code, display,
+                    urlD)
 
             if (validationResult != null) {
                 //logger.info(validationResult?.code)
