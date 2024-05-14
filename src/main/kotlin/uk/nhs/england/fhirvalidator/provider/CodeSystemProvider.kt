@@ -1,7 +1,9 @@
 package uk.nhs.england.fhirvalidator.provider
 
 import ca.uhn.fhir.context.FhirContext
+import ca.uhn.fhir.context.support.ConceptValidationOptions
 import ca.uhn.fhir.context.support.IValidationSupport
+import ca.uhn.fhir.context.support.IValidationSupport.CodeValidationResult
 import ca.uhn.fhir.context.support.ValidationSupportContext
 import ca.uhn.fhir.rest.annotation.*
 import ca.uhn.fhir.rest.api.MethodOutcome
@@ -85,6 +87,44 @@ class CodeSystemProvider (@Qualifier("R4") private val fhirContext: FhirContext,
         return codingSupport.subsumes(codeA,codeB,java.net.URLDecoder.decode(system, StandardCharsets.UTF_8.name()))
     }
 
+    @Operation(name = "\$validate-code", idempotent = true)
+    fun validateCode (
+        @OperationParam(name = "url") url: String?,
+        @OperationParam(name = "context") context: String?,
+        @ResourceParam valueSet: ValueSet?,
+        @OperationParam(name = "valueSetVersion") valueSetVersion: String?,
+        @OperationParam(name = "code") code: String?,
+        @OperationParam(name = "system") system: String?,
+        @OperationParam(name = "systemVersion") systemVersion: String?,
+        @OperationParam(name = "display") display: String?,
+        @OperationParam(name = "coding") coding: TokenParam?,
+        @OperationParam(name = "codeableConcept") codeableConcept: CodeableConcept?,
+        @OperationParam(name = "date") date: DateParam?,
+        @OperationParam(name = "abstract") abstract: BooleanType?,
+        @OperationParam(name = "displayLanguage") displayLanguage: CodeType?
+    ) : OperationOutcome {
+        val input = OperationOutcome()
+        input.issueFirstRep.severity = OperationOutcome.IssueSeverity.INFORMATION
+        if (code != null) {
+            val conceptValidaton = ConceptValidationOptions()
+            var validationResult: CodeValidationResult? =
+                supportChain.validateCode(this.validationSupportContext, conceptValidaton, java.net.URLDecoder.decode(system, StandardCharsets.UTF_8.name()), code, display, java.net.URLDecoder.decode(url, StandardCharsets.UTF_8.name()))
+
+            if (validationResult != null) {
+                //logger.info(validationResult?.code)
+                if (validationResult.severity != null) {
+                    when (validationResult.severity) {
+                        IValidationSupport.IssueSeverity.ERROR -> input.issueFirstRep.severity = OperationOutcome.IssueSeverity.ERROR;
+                        IValidationSupport.IssueSeverity.WARNING -> input.issueFirstRep.severity = OperationOutcome.IssueSeverity.WARNING;
+                        else -> {}
+                    }
+                }
+                input.issueFirstRep.diagnostics = validationResult.message
+                //logger.info(validationResult?.message)
+            }
+        }
+        return input;
+    }
 
 
     @Operation(name = "\$lookup", idempotent = true)
@@ -96,7 +136,10 @@ class CodeSystemProvider (@Qualifier("R4") private val fhirContext: FhirContext,
         @OperationParam(name = "coding") coding: TokenParam?,
         @OperationParam(name = "date") date: DateParam?,
         @OperationParam(name = "displayLanguage") displayLanguage: CodeType?
-    ) : Parameters {
+    ) : Parameters? {
+
+        return codingSupport.lookupCode(code, system, version, coding)
+        /*
         val input = Parameters()
 
         if (code != null) {
@@ -143,6 +186,8 @@ class CodeSystemProvider (@Qualifier("R4") private val fhirContext: FhirContext,
             }
         }
         return input;
+
+         */
     }
 
 

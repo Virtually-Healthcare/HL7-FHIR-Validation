@@ -3,8 +3,10 @@ package uk.nhs.england.fhirvalidator.service
 import ca.uhn.fhir.context.FhirContext
 import ca.uhn.fhir.context.support.IValidationSupport
 import ca.uhn.fhir.context.support.ValidationSupportContext
+import ca.uhn.fhir.rest.annotation.OperationParam
 import ca.uhn.fhir.rest.client.api.IGenericClient
 import ca.uhn.fhir.rest.param.StringOrListParam
+import ca.uhn.fhir.rest.param.TokenParam
 import ca.uhn.fhir.util.ParametersUtil
 import com.github.benmanes.caffeine.cache.Cache
 import com.github.benmanes.caffeine.cache.Caffeine
@@ -68,6 +70,39 @@ class CodingSupport(@Qualifier("R4") private val ctx: FhirContext?,
         if (lookupCodeResultUK!=null) {
             cacheCoding.put(system + "-"+ code,lookupCodeResultUK)
             return lookupCodeResultUK
+        }
+        return null
+    }
+
+    fun lookupCode(code: String?,
+                   system: String?,
+                    version: String?,
+                    coding: TokenParam?): Parameters? {
+        val client = provideClient()
+
+        if (client != null) {
+            val input = ParametersUtil.newInstance(ctx)
+
+           if (code != null) {
+                ParametersUtil.addParameterToParametersCode(ctx, input, "code", code)
+            }
+            if (system != null) {
+                ParametersUtil.addParameterToParametersUri(ctx, input, "system", system)
+            }
+            if (version != null) {
+                ParametersUtil.addParameterToParametersString(ctx, input, "version", version)
+            }
+            if (coding != null) {
+                ParametersUtil.addParameterToParametersCode(ctx, input, "coding", coding.value)
+            }
+
+            val output: IBaseParameters =
+                client.operation().onType(CodeSystem::class.java).named("lookup")
+                    .withParameters<IBaseParameters>(input)
+                    .execute()
+            if (output is Parameters) {
+                return output
+            }
         }
         return null
     }
