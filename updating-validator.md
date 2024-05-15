@@ -24,14 +24,14 @@ Installation of the following on a local machine
 - Go to https://github.com/NHSDigital/IOPS-FHIR-Validation-Service repo
 - Create a new branch named update/<hapi-fhir version-number>
 - edit pom.xml
-    - Set the <fhir.version> to the relevant hapi-fhir version
-    - Set the <version> to the same hapi-fhir version.
+    - Set the `<fhir.version>` to the relevant hapi-fhir version
+    - Set the `<version>` to the same hapi-fhir version.
 
 - Within the validator folder run the following:
-    - $ mvn clean install
-    - $ docker build -t fhir-validator-r4 .
-    - $ docker tag fhir-validator-r4:latest <account id>.dkr.ecr.eu-west-2.amazonaws.com/fhir-validator-r4:<hapi-fhir version-number>
-    - $ docker tag fhir-validator-r4:latest <account id>.dkr.ecr.eu-west-2.amazonaws.com/fhir-validator-r4:latest
+    - $ `mvn clean install`
+    - $ `docker build -t fhir-validator-r4 .`
+    - $ `docker tag fhir-validator-r4:latest <account id>.dkr.ecr.eu-west-2.amazonaws.com/fhir-validator-r4:<hapi-fhir version-number>`
+    - $ `docker tag fhir-validator-r4:latest <account id>.dkr.ecr.eu-west-2.amazonaws.com/fhir-validator-r4:latest`
 
 - Login in to the AWS website
 - Click ‘Command line or programmatic access’ within NHS Digital IOPS FHIR dev
@@ -40,9 +40,10 @@ Installation of the following on a local machine
     - Copy Option 2 into credentials.txt if you have aws toolkit installed
 
 - run
-    - $ aws get-login-password –region eu-west-2 | docker login –username AWS –password stdin <account id>.dkr.ecr.eu-west-2.amazonaws.com
-    - $ docker push <account id>.dkr.ecr.eu-west-2.amazonaws.com/fhir-validator-r4:[hapi-fhir version-number]
+    - $ `aws ecr get-login-password --region eu-west-2 | docker login --username AWS --password-stdin <account id>.dkr.ecr.eu-west-2.amazonaws.com`
+    - $ `docker push fhir-validator-r4:<hapi-fhir version-number> <account id>.dkr.ecr.eu-west-2.amazonaws.com/fhir-validator-r4:<hapi-fhir version-number>`
 
+The above cmd can be found within `https://eu-west-2.console.aws.amazon.com/ecr/repositories/private/<account id>/fhir-validator-r4?region=eu-west-2` under 'View push commands'.
 - In AWS go to ‘Management console’
     - Search for ECR
     - Ensure the server is set to ‘eu-west-2’
