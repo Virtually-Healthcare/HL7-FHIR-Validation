@@ -20,7 +20,7 @@ fhir:
   server:
     name: FHIR Development and Testing (FHIR Validation) Skunkworks
     baseUrl: http://localhost:9001
-    version: 7.0.6
+    version: 7.0.7
 
 services:
   R4: true
