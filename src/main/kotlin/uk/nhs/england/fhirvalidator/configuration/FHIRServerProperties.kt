@@ -6,6 +6,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties
 @ConfigurationProperties(prefix = "fhir")
 data class FHIRServerProperties(
     var server: Server,
+    var isNHSEngland: Boolean?,
     //var ig: Package?,
     var igs: String?
 ) {

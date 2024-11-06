@@ -1,14 +1,7 @@
 [
   {
-    "packageName": "fhir.r4.ukcore.stu3.currentbuild",
-    "version": "0.0.9-pre-release"
-  },
-  {
-    "packageName": "hl7.fhir.uv.sdc",
-    "version": "3.0.0"
-  },
-  {
-    "packageName": "fhir.r4.nhsengland.stu1",
-    "version": "1.3.0"
+    "packageName": "virtually.healthcare",
+    "version": "0.1.0-current",
+    "downloadUrl": "https://build.fhir.org/ig/KevinMayfield/VirtuallyHealthcare/branches/main/package.tgz"
   }
 ]

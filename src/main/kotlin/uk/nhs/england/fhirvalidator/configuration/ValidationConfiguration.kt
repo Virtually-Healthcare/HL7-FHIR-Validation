@@ -7,6 +7,7 @@ import ca.uhn.fhir.context.support.ValidationSupportContext
 import ca.uhn.fhir.rest.server.exceptions.UnprocessableEntityException
 import ca.uhn.fhir.validation.FhirValidator
 import com.fasterxml.jackson.databind.ObjectMapper
+import io.swagger.transform.util.APIFileDownload
 import io.swagger.v3.oas.models.examples.Example
 import mu.KLogging
 import org.hl7.fhir.common.hapi.validation.support.*
@@ -277,7 +278,7 @@ open class ValidationConfiguration(
             val packages= fhirServerProperties.igs!!.split(",")
             val manifest2 = arrayListOf<SimplifierPackage>()
             packages.forEachIndexed{ index, pkg  ->
-                manifest2.add(SimplifierPackage(pkg.substringBefore("#"),pkg.substringAfter("#")))
+                manifest2.add(SimplifierPackage(pkg.substringBefore("#"),pkg.substringAfter("#"),null))
             }
             manifest = manifest2.toTypedArray()
         } else {
@@ -297,7 +298,7 @@ open class ValidationConfiguration(
                 if (ex.message != null) logger.info(ex.message)
             }
             if (inputStream == null) {
-                val downloadedPackages = downloadPackage(packageNpm.packageName,packageNpm.version)
+                val downloadedPackages = downloadPackage(packageNpm.packageName,packageNpm.version, packageNpm.downloadUrl)
                 for (downloadpackage in downloadedPackages) {
                     val name = downloadpackage.name()+'#'+downloadpackage.version()
                     if (packages.get(name) == null) {
@@ -332,16 +333,24 @@ open class ValidationConfiguration(
         return manifest
     }
 
-    open fun downloadPackage(name : String, version : String) : List<NpmPackage> {
+    open fun downloadPackage(name : String, version : String, downloadPath: String?) : List<NpmPackage> {
         logger.info("Downloading from AWS Cache {} - {}",name, version)
         // Try self first
         var inputStream : InputStream? = null;
         try {
-            val packUrl =  "https://fhir.nhs.uk/ImplementationGuide/" + name+"-" + version
-            inputStream = readFromUrl(messageProperties.getNPMFhirServer() + "/FHIR/R4/ImplementationGuide/\$package?url="+packUrl )
-            logger.info("Found Package on AWS Cache {} - {}",name,version)
+            if (downloadPath == null ) {
+                val packUrl = "https://fhir.nhs.uk/ImplementationGuide/" + name + "-" + version
+                inputStream =
+                    readFromUrl(messageProperties.getNPMFhirServer() + "/FHIR/R4/ImplementationGuide/\$package?url=" + packUrl)
+                logger.info("Found Package on AWS Cache {} - {}", name, version)
+            } else {
+                val packUrl = "https://fhir.nhs.uk/ImplementationGuide/" + name + "-" + version
+                inputStream =
+                    readFromUrl(downloadPath)
+                logger.info("Found Package at specified download path {} - {}", name, version)
+            }
         } catch (ex : Exception) {
-            logger.warn("Package not found in AWS Cache trying simplifier {} - {}",name,version)
+            logger.warn("Package not found in IG Publisher or AWS Cache trying simplifier {} - {}",name,version)
             if (ex.message!=null) logger.info(ex.message)
             try {
                 inputStream = readFromUrl("https://packages.simplifier.net/" + name + "/" + version)
@@ -368,7 +377,7 @@ open class ValidationConfiguration(
                     if (it.name != "hl7.fhir.r4.core") {
                         val entryVersion = it.value?.asString()?.replace("\"","")
                         if (it.name != null && entryVersion != null) {
-                            val packs = downloadPackage(it.name!!, entryVersion)
+                            val packs = downloadPackage(it.name!!, entryVersion, null)
                             if (packs.size > 0) {
                                 for (pack in packs) {
                                     packages.add(pack)

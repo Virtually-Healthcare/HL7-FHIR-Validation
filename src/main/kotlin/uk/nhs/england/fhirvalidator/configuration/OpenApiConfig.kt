@@ -1106,7 +1106,7 @@ open class OpenApiConfig(@Qualifier("R4") val ctx : FhirContext,
             val packages= fhirServerProperties.igs!!.split(",")
             val manifest2 = arrayListOf<SimplifierPackage>()
             packages.forEachIndexed{ index, pkg  ->
-                manifest2.add(SimplifierPackage(pkg.substringBefore("#"),pkg.substringAfter("#")))
+                manifest2.add(SimplifierPackage(pkg.substringBefore("#"),pkg.substringAfter("#"), null))
             }
             manifest = manifest2.toTypedArray()
         } else {

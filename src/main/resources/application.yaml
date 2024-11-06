@@ -17,6 +17,7 @@ management:
       include: "*"
 
 fhir:
+  isNHSEngland: false
   server:
     name: FHIR Development and Testing (FHIR Validation) Skunkworks
     baseUrl: http://localhost:9001
@@ -24,7 +25,7 @@ fhir:
 
 services:
   R4: true
-  STU3: true
+  STU3: false
   LOINC: true
   R4B: false
 
