@@ -28,6 +28,8 @@ services:
   STU3: false
   LOINC: true
   R4B: false
+  Utility: false
+  Experimental: false
 
 ###Remote terminology validation:
 

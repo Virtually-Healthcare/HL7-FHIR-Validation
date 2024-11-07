@@ -13,6 +13,7 @@ import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import uk.nhs.england.fhirvalidator.configuration.FHIRServerProperties
 import uk.nhs.england.fhirvalidator.configuration.MessageProperties
+import uk.nhs.england.fhirvalidator.configuration.ServicesProperties
 import uk.nhs.england.fhirvalidator.interceptor.AWSAuditEventLoggingInterceptor
 import uk.nhs.england.fhirvalidator.interceptor.CapabilityStatementInterceptor
 import uk.nhs.england.fhirvalidator.interceptor.ValidationInterceptor
@@ -45,7 +46,8 @@ class FHIRR4RestfulServer(
     private val compostionProvider: CompostionProvider,
     @Qualifier("SupportChain") private val supportChain: IValidationSupport,
     val fhirServerProperties: FHIRServerProperties,
-    private val messageProperties: MessageProperties
+    private val messageProperties: MessageProperties,
+    private val servicesProperties: ServicesProperties
 ) : RestfulServer(fhirContext) {
 
     override fun initialize() {
@@ -54,8 +56,8 @@ class FHIRR4RestfulServer(
         TimeZone.setDefault(TimeZone.getTimeZone("UTC"))
 
         registerProvider(validateR4Provider)
-        registerProvider(openAPIProvider)
-        registerProvider(markdownProvider)
+        if (servicesProperties.Experimental) registerProvider(openAPIProvider)
+        if (servicesProperties.Experimental)registerProvider(markdownProvider)
         registerProvider(capabilityStatementProvider)
         registerProvider(messageDefinitionProvider)
         registerProvider(structureDefinitionProvider)

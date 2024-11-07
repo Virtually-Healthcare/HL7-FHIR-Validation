@@ -142,42 +142,101 @@ open class OpenApiConfig(@Qualifier("R4") val ctx : FhirContext,
                     ))
             )
         oas.path("/FHIR/R4/\$validate",validateItem)
+       if (servicesProperties.Utility) {
+           val fhirPathItem = PathItem()
+               .post(
+                   Operation()
+                       .addTagsItem(UTILITY)
+                       .summary("Experimental fhir path expression evaluation")
+                       .description("[fhir path](https://www.hl7.org/fhir/R4/fhirpath.html)")
+                       .responses(getApiResponsesXMLJSON_JSONDefault())
+                       .addParametersItem(
+                           Parameter()
+                               .name("expression")
+                               .`in`("query")
+                               .required(false)
+                               .style(Parameter.StyleEnum.SIMPLE)
+                               .description("FHIRPath expression")
+                               .schema(StringSchema())
+                               .example("identifier.where(system='https://fhir.nhs.uk/Id/nhs-number')")
+                       )
+                       .requestBody(
+                           RequestBody().content(
+                               Content()
+                                   .addMediaType(
+                                       "application/fhir+json",
+                                       MediaType().schema(StringSchema()._default("{\"resourceType\":\"Patient\"}"))
+                                   )
+                                   .addMediaType("application/fhir+xml", MediaType().schema(StringSchema()))
+                           )
+                       )
+               )
+           oas.path("/FHIR/R4/\$fhirpathEvaluate", fhirPathItem)
 
-        val fhirPathItem = PathItem()
-            .post(
-                Operation()
-                    .addTagsItem(UTILITY)
-                    .summary("Experimental fhir path expression evaluation")
-                    .description("[fhir path](https://www.hl7.org/fhir/R4/fhirpath.html)")
-                    .responses(getApiResponsesXMLJSON_JSONDefault())
-                    .addParametersItem(Parameter()
-                        .name("expression")
-                        .`in`("query")
-                        .required(false)
-                        .style(Parameter.StyleEnum.SIMPLE)
-                        .description("FHIRPath expression")
-                        .schema(StringSchema())
-                        .example("identifier.where(system='https://fhir.nhs.uk/Id/nhs-number')"))
-                    .requestBody(RequestBody().content(Content()
-                        .addMediaType("application/fhir+json",MediaType().schema(StringSchema()._default("{\"resourceType\":\"Patient\"}")))
-                        .addMediaType("application/fhir+xml",MediaType().schema(StringSchema()))
-                    ))
-            )
-        oas.path("/FHIR/R4/\$fhirpathEvaluate",fhirPathItem)
+
+           val convertItem = PathItem()
+               .post(
+                   Operation()
+                       .addTagsItem(UTILITY)
+                       .summary("Switch between XML and JSON formats")
+                       .responses(getApiResponsesXMLJSON_XMLDefault())
+                       .requestBody(
+                           RequestBody().content(
+                               Content()
+                                   .addMediaType(
+                                       "application/fhir+json",
+                                       MediaType().schema(StringSchema()._default("{\"resourceType\":\"CapabilityStatement\"}"))
+                                   )
+                                   .addMediaType("application/fhir+xml", MediaType().schema(StringSchema()))
+                           )
+                       )
+               )
+           oas.path("/FHIR/R4/\$convert", convertItem)
+
+           val convertR4Item = PathItem()
+               .post(
+                   Operation()
+                       .addTagsItem(UTILITY)
+                       .summary("Convert to FHIR R4 (Structure only)")
+                       .addParametersItem(Parameter()
+                           .name("Accept")
+                           .`in`("header")
+                           .required(true)
+                           .style(Parameter.StyleEnum.SIMPLE)
+                           .description("Select response format")
+                           .schema(StringSchema()._enum(listOf("application/fhir+xml","application/fhir+json"))))
+                       .responses(getApiResponsesXMLJSON_XMLDefault())
+                       .requestBody(RequestBody().content(Content()
+                           .addMediaType("application/fhir+json",
+                               MediaType().schema(StringSchema()._default("{\"resourceType\":\"CapabilityStatement\"}")))
+                           .addMediaType("application/fhir+xml",MediaType().schema(StringSchema()))
+                       )))
+           oas.path("/FHIR/STU3/\$convertR4",convertR4Item)
+           val examplesCS = LinkedHashMap<String,Example?>()
+           examplesCS.put("UK Core Access Patient Provider",
+               Example().value(OASExamples().loadFHIRExample("UKCore-Access-Patient-Provider.json",ctx))
+           )
+           val capabilityStatementItem = PathItem()
+               .post(
+                   Operation()
+                       .addTagsItem(UTILITY)
+                       .summary("Converts a FHIR CapabilityStatement to openapi v3 format")
+                       .addParametersItem(Parameter()
+                           .name("enhance")
+                           .`in`("query")
+                           .required(false)
+                           .style(Parameter.StyleEnum.SIMPLE)
+                           .description("`true | false`. Adds markdown documentation from FHIR Specification (do not rerun once it has been added)")
+                           // Removed example profile
+                           .schema(StringSchema().format("token")))
+                       .responses(getApiResponsesMarkdown())
+                       .requestBody(RequestBody().content(Content().addMediaType("application/fhir+json",MediaType().examples(examplesCS).schema(StringSchema()))))
+               )
+           oas.path("/FHIR/R4/CapabilityStatement/\$openapi",capabilityStatementItem)
 
 
-        val convertItem = PathItem()
-            .post(
-                Operation()
-                    .addTagsItem(UTILITY)
-                    .summary("Switch between XML and JSON formats")
-                    .responses(getApiResponsesXMLJSON_XMLDefault())
-                    .requestBody(RequestBody().content(Content()
-                        .addMediaType("application/fhir+json",
-                            MediaType().schema(StringSchema()._default("{\"resourceType\":\"CapabilityStatement\"}")))
-                        .addMediaType("application/fhir+xml",MediaType().schema(StringSchema()))
-                    )))
-        oas.path("/FHIR/R4/\$convert",convertItem)
+       }
+
 
         oas.path("/FHIR/R4/StructureDefinition",
             getPathItem(CONFORMANCE,"StructureDefinition", "Structure Definition (profile)", "url", "https://fhir.hl7.org.uk/StructureDefinition/UKCore-Patient" ,"" )
@@ -563,7 +622,7 @@ open class OpenApiConfig(@Qualifier("R4") val ctx : FhirContext,
             val subsumesItem = PathItem()
                 .get(
                     Operation()
-                        .addTagsItem(EXPERIMENTAL)
+                        .addTagsItem(ONTOLOGY)
                         .summary("Test the subsumption relationship between code A and code B given the semantics of subsumption in the underlying code system ")
                         .description("[subsumes](https://hl7.org/fhir/R4/codesystem-operation-subsumes.html)")
                         .responses(getApiResponses())
@@ -879,130 +938,111 @@ open class OpenApiConfig(@Qualifier("R4") val ctx : FhirContext,
         examplesOAS.put("PDS API",
             Example().value(OASExamples().loadOASExample("PDS.json",ctx))
         )
-        val verifyOASItem = PathItem()
-            .post(
-                Operation()
-                    .addTagsItem(EXPERIMENTAL)
-                    .summary("Verifies a self contained OAS file for FHIR Conformance. Response format is the same as the FHIR \$validate operation")
-                    .description("This is a proof of concept.")
-                    .responses(getApiResponsesRAWJSON())
-                    .requestBody(RequestBody().content(Content()
-                        .addMediaType("application/json",MediaType().examples(examplesOAS)
-                            .schema(StringSchema()))
-                        .addMediaType("application/x-yaml",MediaType().schema(StringSchema())))
-                    )
-            )
-        oas.path("/FHIR/R4/\$verifyOAS",verifyOASItem)
 
-        val convertOASItem = PathItem()
-            .post(
-                Operation()
-                    .addTagsItem(EXPERIMENTAL)
-                    .summary("Converts OAS in YAML to JSON format")
-                    .description("This is a proof of concept.")
-                    .responses(getApiResponsesRAWJSON())
-                    .requestBody(RequestBody().content(Content()
-                        .addMediaType("application/x-yaml",MediaType().schema(StringSchema()))
-                        .addMediaType("application/json",MediaType().examples(examplesOAS)
-                            .schema(StringSchema()))
+        if (servicesProperties.Experimental) {
+            val verifyOASItem = PathItem()
+                .post(
+                    Operation()
+                        .addTagsItem(EXPERIMENTAL)
+                        .summary("Verifies a self contained OAS file for FHIR Conformance. Response format is the same as the FHIR \$validate operation")
+                        .description("This is a proof of concept.")
+                        .responses(getApiResponsesRAWJSON())
+                        .requestBody(
+                            RequestBody().content(
+                                Content()
+                                    .addMediaType(
+                                        "application/json", MediaType().examples(examplesOAS)
+                                            .schema(StringSchema())
+                                    )
+                                    .addMediaType("application/x-yaml", MediaType().schema(StringSchema()))
+                            )
                         )
-                    )
-            )
-        oas.path("/FHIR/R4/\$convertOAS",convertOASItem)
+                )
+            oas.path("/FHIR/R4/\$verifyOAS", verifyOASItem)
 
-        val convertOAStoFHIRItem = PathItem()
-            .post(
-                Operation()
-                    .addTagsItem(EXPERIMENTAL)
-                    .summary("Converts OAS in YAML/JSON format to FHIR CapabilityStatement")
-                    .description("This is a proof of concept.")
-                    .responses(getApiResponsesRAWJSON())
-                    .requestBody(RequestBody().content(Content()
-                        .addMediaType("application/x-yaml",MediaType().schema(StringSchema()))
-                        .addMediaType("application/json",MediaType().examples(examplesOAS)
-                            .schema(StringSchema()))
-                    )
-                    )
-            )
-        oas.path("/FHIR/R4/\$convertOAStoFHIR",convertOAStoFHIRItem)
+            val convertOASItem = PathItem()
+                .post(
+                    Operation()
+                        .addTagsItem(EXPERIMENTAL)
+                        .summary("Converts OAS in YAML to JSON format")
+                        .description("This is a proof of concept.")
+                        .responses(getApiResponsesRAWJSON())
+                        .requestBody(
+                            RequestBody().content(
+                                Content()
+                                    .addMediaType("application/x-yaml", MediaType().schema(StringSchema()))
+                                    .addMediaType(
+                                        "application/json", MediaType().examples(examplesOAS)
+                                            .schema(StringSchema())
+                                    )
+                            )
+                        )
+                )
+            oas.path("/FHIR/R4/\$convertOAS", convertOASItem)
+
+            val convertOAStoFHIRItem = PathItem()
+                .post(
+                    Operation()
+                        .addTagsItem(EXPERIMENTAL)
+                        .summary("Converts OAS in YAML/JSON format to FHIR CapabilityStatement")
+                        .description("This is a proof of concept.")
+                        .responses(getApiResponsesRAWJSON())
+                        .requestBody(
+                            RequestBody().content(
+                                Content()
+                                    .addMediaType("application/x-yaml", MediaType().schema(StringSchema()))
+                                    .addMediaType(
+                                        "application/json", MediaType().examples(examplesOAS)
+                                            .schema(StringSchema())
+                                    )
+                            )
+                        )
+                )
+            oas.path("/FHIR/R4/\$convertOAStoFHIR", convertOAStoFHIRItem)
 
 
+            val convertToTextItem = PathItem()
+                .post(
+                    Operation()
+                        .addTagsItem(EXPERIMENTAL)
+                        .summary("Does a basic conversion of the FHIR resource to text")
+                        .description("This is a proof of concept.")
+                        .responses(getApiResponsesMarkdown())
+                        .requestBody(
+                            RequestBody().content(
+                                Content()
+                                    .addMediaType(
+                                        "application/fhir+json", MediaType()
+                                            .examples(examples)
+                                            .schema(StringSchema())
+                                    )
+                            )
+                        )
+                )
+            oas.path("/FHIR/R4/\$convertToText", convertToTextItem)
 
 
-        val convertToTextItem = PathItem()
-            .post(
-                Operation()
-                    .addTagsItem(EXPERIMENTAL)
-                    .summary("Does a basic conversion of the FHIR resource to text")
-                    .description("This is a proof of concept.")
-                    .responses(getApiResponsesMarkdown())
-                    .requestBody(RequestBody().content(Content()
-                        .addMediaType("application/fhir+json",MediaType()
-                            .examples(examples)
-                            .schema(StringSchema()))))
-            )
-        oas.path("/FHIR/R4/\$convertToText",convertToTextItem)
+            val markdownItem = PathItem()
+                .get(
+                    Operation()
+                        .addTagsItem(EXPERIMENTAL)
+                        .summary("Converts a FHIR profile to a simplifier compatible markdown format")
+                        .responses(getApiResponsesMarkdown())
+                        .addParametersItem(
+                            Parameter()
+                                .name("url")
+                                .`in`("query")
+                                .required(true)
+                                .style(Parameter.StyleEnum.SIMPLE)
+                                .description("The uri that identifies the resource.")
+                                .schema(StringSchema())
+                                .example("https://fhir.nhs.uk/StructureDefinition/NHSDigital-Organization")
+                        )
+                    //.requestBody(RequestBody().content(Content().addMediaType("application/fhir+json",MediaType().schema(StringSchema()._default("{\"resourceType\":\"Patient\"}")))))
+                )
 
-
-        val markdownItem = PathItem()
-            .get(
-                Operation()
-                    .addTagsItem(EXPERIMENTAL)
-                    .summary("Converts a FHIR profile to a simplifier compatible markdown format")
-                    .responses(getApiResponsesMarkdown())
-                    .addParametersItem(Parameter()
-                        .name("url")
-                        .`in`("query")
-                        .required(true)
-                        .style(Parameter.StyleEnum.SIMPLE)
-                        .description("The uri that identifies the resource.")
-                        .schema(StringSchema())
-                        .example("https://fhir.nhs.uk/StructureDefinition/NHSDigital-Organization"))
-                //.requestBody(RequestBody().content(Content().addMediaType("application/fhir+json",MediaType().schema(StringSchema()._default("{\"resourceType\":\"Patient\"}")))))
-            )
-
-        oas.path("/FHIR/R4/\$markdown",markdownItem)
-
-        val convertR4Item = PathItem()
-            .post(
-                Operation()
-                    .addTagsItem(UTILITY)
-                    .summary("Convert to FHIR R4 (Structure only)")
-                    .addParametersItem(Parameter()
-                        .name("Accept")
-                        .`in`("header")
-                        .required(true)
-                        .style(Parameter.StyleEnum.SIMPLE)
-                        .description("Select response format")
-                        .schema(StringSchema()._enum(listOf("application/fhir+xml","application/fhir+json"))))
-                    .responses(getApiResponsesXMLJSON_XMLDefault())
-                    .requestBody(RequestBody().content(Content()
-                        .addMediaType("application/fhir+json",
-                            MediaType().schema(StringSchema()._default("{\"resourceType\":\"CapabilityStatement\"}")))
-                        .addMediaType("application/fhir+xml",MediaType().schema(StringSchema()))
-                    )))
-        oas.path("/FHIR/STU3/\$convertR4",convertR4Item)
-        val examplesCS = LinkedHashMap<String,Example?>()
-        examplesCS.put("UK Core Access Patient Provider",
-            Example().value(OASExamples().loadFHIRExample("UKCore-Access-Patient-Provider.json",ctx))
-        )
-        val capabilityStatementItem = PathItem()
-            .post(
-                Operation()
-                    .addTagsItem(UTILITY)
-                    .summary("Converts a FHIR CapabilityStatement to openapi v3 format")
-                    .addParametersItem(Parameter()
-                        .name("enhance")
-                        .`in`("query")
-                        .required(false)
-                        .style(Parameter.StyleEnum.SIMPLE)
-                        .description("`true | false`. Adds markdown documentation from FHIR Specification (do not rerun once it has been added)")
-                        // Removed example profile
-                        .schema(StringSchema().format("token")))
-                    .responses(getApiResponsesMarkdown())
-                    .requestBody(RequestBody().content(Content().addMediaType("application/fhir+json",MediaType().examples(examplesCS).schema(StringSchema()))))
-            )
-        oas.path("/FHIR/R4/CapabilityStatement/\$openapi",capabilityStatementItem)
+            oas.path("/FHIR/R4/\$markdown", markdownItem)
+        }
 
         return oas
 

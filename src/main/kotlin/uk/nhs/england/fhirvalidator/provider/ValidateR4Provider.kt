@@ -14,7 +14,6 @@ import org.hl7.fhir.instance.model.api.IBaseResource
 import org.hl7.fhir.r4.hapi.ctx.HapiWorkerContext
 import org.hl7.fhir.r4.model.*
 import org.hl7.fhir.r4.model.OperationOutcome.OperationOutcomeIssueComponent
-import org.hl7.fhir.r4.utils.FHIRPathEngine
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.stereotype.Component
 import uk.nhs.england.fhirvalidator.interceptor.CapabilityStatementApplier
@@ -25,6 +24,7 @@ import uk.nhs.england.fhirvalidator.util.createOperationOutcome
 import java.net.URLDecoder
 import java.nio.charset.StandardCharsets
 import jakarta.servlet.http.HttpServletRequest
+import org.hl7.fhir.r4.fhirpath.FHIRPathEngine
 
 @Component
 class ValidateR4Provider (
