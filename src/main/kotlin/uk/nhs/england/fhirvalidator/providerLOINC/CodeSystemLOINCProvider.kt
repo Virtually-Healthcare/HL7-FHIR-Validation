@@ -1,26 +1,12 @@
 package uk.nhs.england.fhirvalidator.providerLOINC
 
 import ca.uhn.fhir.context.FhirContext
-import ca.uhn.fhir.context.support.IValidationSupport
-import ca.uhn.fhir.context.support.ValidationSupportContext
 import ca.uhn.fhir.rest.annotation.*
-import ca.uhn.fhir.rest.api.MethodOutcome
-import ca.uhn.fhir.rest.api.server.RequestDetails
-import ca.uhn.fhir.rest.param.DateParam
-import ca.uhn.fhir.rest.param.TokenParam
 import ca.uhn.fhir.rest.server.IResourceProvider
-import org.hl7.fhir.common.hapi.validation.support.ValidationSupportChain
 import org.hl7.fhir.r4.model.*
-import org.hl7.fhir.utilities.npm.NpmPackage
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.stereotype.Component
-import uk.nhs.england.fhirvalidator.awsProvider.AWSCodeSystem
 import uk.nhs.england.fhirvalidator.interceptor.BasicAuthInterceptor
-import uk.nhs.england.fhirvalidator.interceptor.CognitoAuthInterceptor
-import uk.nhs.england.fhirvalidator.service.CodingSupport
-import uk.nhs.england.fhirvalidator.service.ImplementationGuideParser
-import uk.nhs.england.fhirvalidator.shared.LookupCodeResultUK
-import java.nio.charset.StandardCharsets
 import jakarta.servlet.http.HttpServletRequest
 
 @Component

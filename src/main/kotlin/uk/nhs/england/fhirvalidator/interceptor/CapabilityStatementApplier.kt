@@ -12,11 +12,12 @@ import org.springframework.stereotype.Service
 class CapabilityStatementApplier(
     val supportChain: ValidationSupportChain
 ) {
-    private val restResources = supportChain.fetchAllConformanceResources()?.filterIsInstance(CapabilityStatement::class.java)?.filterNot { it.url == null
+    private val restResources = supportChain.fetchAllConformanceResources()?.filterIsInstance(CapabilityStatement::class.java)?.filterNot {
+        it.url == null
             || it.url.contains("sdc")
             || it.url.contains("ips")
-            || it.url.contains("ipa")
-            || (!it.url.contains(".uk") && !it.url.contains(".wales") )
+          //  || it.url.contains("ipa")
+          //  || (!it.url.contains(".uk") && !it.url.contains(".wales") && !it.url.contains("virtually.healthcare") )
             || it.url.contains("us.core")}
         ?.flatMap { it.rest }
         ?.flatMap { it.resource }

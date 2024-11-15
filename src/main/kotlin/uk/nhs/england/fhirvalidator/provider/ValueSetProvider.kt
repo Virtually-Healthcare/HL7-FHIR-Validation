@@ -24,7 +24,6 @@ import org.hl7.fhir.r4.model.*
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.security.oauth2.client.OAuth2AuthorizedClientManager
 import org.springframework.stereotype.Component
-import uk.nhs.england.fhirvalidator.awsProvider.AWSValueSet
 import uk.nhs.england.fhirvalidator.configuration.TerminologyValidationProperties
 import uk.nhs.england.fhirvalidator.interceptor.CognitoAuthInterceptor
 import uk.nhs.england.fhirvalidator.service.CodingSupport
@@ -38,8 +37,6 @@ import jakarta.servlet.http.HttpServletRequest
 class ValueSetProvider (@Qualifier("R4") private val fhirContext: FhirContext,
                         private val supportChain: ValidationSupportChain,
                         private val codingSupport: CodingSupport,
-                        private val awsValueSet: AWSValueSet,
-                        private val cognitoAuthInterceptor: CognitoAuthInterceptor,
                         private val optionalAuthorizedClientManager: Optional<OAuth2AuthorizedClientManager>,
                         private val terminologyValidationProperties: TerminologyValidationProperties
 ) : IResourceProvider {
@@ -71,30 +68,9 @@ class ValueSetProvider (@Qualifier("R4") private val fhirContext: FhirContext,
 
     private var terminologyClient : IGenericClient? = null;
 
-    @Update
-    fun update(
-        theRequest: HttpServletRequest,
-        @ResourceParam valueSet: ValueSet,
-        @IdParam theId: IdType,
-        theRequestDetails: RequestDetails?
-    ): MethodOutcome? {
-        return awsValueSet.update(valueSet, theId)
-    }
-    @Create
-    fun create(theRequest: HttpServletRequest, @ResourceParam valueSet: ValueSet): MethodOutcome? {
-        return awsValueSet.create(valueSet)
-    }
 
-    @Read
-    fun read(httpRequest : HttpServletRequest, @IdParam internalId: IdType): ValueSet? {
-        val resource: Resource? = cognitoAuthInterceptor.readFromUrl(httpRequest.pathInfo, null,"ValueSet")
-        return if (resource is ValueSet) resource else null
-    }
 
-    @Delete
-    fun create(theRequest: HttpServletRequest, @IdParam theId: IdType): MethodOutcome? {
-        return awsValueSet.delete(theId)
-    }
+
     @Search
     fun search(@OptionalParam(name = ValueSet.SP_URL) url: TokenParam?): List<ValueSet> {
         val list = mutableListOf<ValueSet>()
@@ -134,24 +110,21 @@ class ValueSetProvider (@Qualifier("R4") private val fhirContext: FhirContext,
         }
 
         val resource = supportChain.fetchResource(ValueSet::class.java,java.net.URLDecoder.decode(url.value, StandardCharsets.UTF_8.name()))
-        if (resource != null) { list.add(resource)
+        if (resource != null) {
+            list.add(resource)
         } else {
-            val resources = awsValueSet.search(url)
-            if (resources.size > 0) {
-                list.addAll(resources)
-            } else {
-                if (terminologyClient !== null) {
-                    val results = terminologyClient!!.search<Bundle>().forResource("ValueSet")
-                        .where(CodeSystem.URL.matches().value(url.value)).execute()
-                    if (results !== null && results.hasEntry()) {
-                        if (results.entry.size>0 && results.entry[0].hasResource() && results.entry[0].resource is ValueSet) {
-                            val summaryValueset = results.entry[0].resource as ValueSet
-                            val fullValueSet = terminologyClient!!.read().resource("ValueSet").withId(summaryValueset.id).execute()
-                            if (fullValueSet is ValueSet) list.add(fullValueSet)
-                        }
+            if (terminologyClient !== null) {
+                val results = terminologyClient!!.search<Bundle>().forResource("ValueSet")
+                    .where(CodeSystem.URL.matches().value(url.value)).execute()
+                if (results !== null && results.hasEntry()) {
+                    if (results.entry.size>0 && results.entry[0].hasResource() && results.entry[0].resource is ValueSet) {
+                        val summaryValueset = results.entry[0].resource as ValueSet
+                        val fullValueSet = terminologyClient!!.read().resource("ValueSet").withId(summaryValueset.id).execute()
+                        if (fullValueSet is ValueSet) list.add(fullValueSet)
                     }
                 }
             }
+
         }
         return list
     }

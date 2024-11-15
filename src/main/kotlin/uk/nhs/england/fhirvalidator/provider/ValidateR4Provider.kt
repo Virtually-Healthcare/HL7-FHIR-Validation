@@ -24,7 +24,8 @@ import uk.nhs.england.fhirvalidator.util.createOperationOutcome
 import java.net.URLDecoder
 import java.nio.charset.StandardCharsets
 import jakarta.servlet.http.HttpServletRequest
-import org.hl7.fhir.r4.fhirpath.FHIRPathEngine
+import org.hl7.fhir.r4.utils.FHIRPathEngine
+
 
 @Component
 class ValidateR4Provider (
@@ -120,6 +121,7 @@ class ValidateR4Provider (
         if (operationOutcome != null ) {
             if (operationOutcome.hasIssue()) {
             // Temp workaround for onto validation issues around workflow code
+                val newIssue = ArrayList<OperationOutcomeIssueComponent>()
                 for (issue in operationOutcome.issue) {
                     if (issue.hasDiagnostics() && issue.diagnostics.contains("404")) {
                         if(// issue.diagnostics.contains("https://fhir.nhs.uk/CodeSystem/Workflow-Code") ||
@@ -140,7 +142,11 @@ class ValidateR4Provider (
                     if (issue.diagnostics.contains("note that the validator cannot judge what is suitable")) {
                         issue.severity = OperationOutcome.IssueSeverity.INFORMATION
                     }
+                    if (!issue.diagnostics.contains("Validation failed for 'http://loinc.org")) {
+                        newIssue.add(issue)
+                    }
                 }
+                operationOutcome.issue = newIssue
             } else {
                 // https://nhsd-jira.digital.nhs.uk/browse/IOPS-829
                 operationOutcome.issue.add(OperationOutcome.OperationOutcomeIssueComponent()

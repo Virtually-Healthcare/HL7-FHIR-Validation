@@ -6,31 +6,21 @@ import ca.uhn.fhir.context.support.IValidationSupport
 import ca.uhn.fhir.context.support.IValidationSupport.CodeValidationResult
 import ca.uhn.fhir.context.support.ValidationSupportContext
 import ca.uhn.fhir.rest.annotation.*
-import ca.uhn.fhir.rest.api.MethodOutcome
-import ca.uhn.fhir.rest.api.server.RequestDetails
 import ca.uhn.fhir.rest.param.DateParam
 import ca.uhn.fhir.rest.param.TokenParam
 import ca.uhn.fhir.rest.server.IResourceProvider
 import org.hl7.fhir.common.hapi.validation.support.ValidationSupportChain
 import org.hl7.fhir.r4.model.*
-import org.hl7.fhir.utilities.npm.NpmPackage
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.stereotype.Component
-import uk.nhs.england.fhirvalidator.awsProvider.AWSCodeSystem
-import uk.nhs.england.fhirvalidator.interceptor.CognitoAuthInterceptor
 import uk.nhs.england.fhirvalidator.service.CodingSupport
-import uk.nhs.england.fhirvalidator.service.ImplementationGuideParser
-import uk.nhs.england.fhirvalidator.shared.LookupCodeResultUK
 import java.nio.charset.StandardCharsets
-import jakarta.servlet.http.HttpServletRequest
 
 @Component
 class CodeSystemProvider (@Qualifier("R4") private val fhirContext: FhirContext,
                           private val supportChain: ValidationSupportChain,
                           private val codingSupport: CodingSupport,
-                          private val validationSupportContext: ValidationSupportContext,
-                          private val awsCodeSystem: AWSCodeSystem,
-                          private val cognitoAuthInterceptor: CognitoAuthInterceptor
+                          private val validationSupportContext: ValidationSupportContext
 ) : IResourceProvider {
     /**
      * The getResourceType method comes from IResourceProvider, and must
@@ -41,28 +31,6 @@ class CodeSystemProvider (@Qualifier("R4") private val fhirContext: FhirContext,
         return CodeSystem::class.java
     }
 
-    @Update
-    fun update(
-        theRequest: HttpServletRequest,
-        @ResourceParam codeSystem: CodeSystem,
-        @IdParam theId: IdType,
-        theRequestDetails: RequestDetails?
-    ): MethodOutcome? {
-        return awsCodeSystem.update(codeSystem, theId)
-    }
-    @Create
-    fun create(theRequest: HttpServletRequest, @ResourceParam codeSystem: CodeSystem): MethodOutcome? {
-        return awsCodeSystem.create(codeSystem)
-    }
-    @Read
-    fun read(httpRequest : HttpServletRequest, @IdParam internalId: IdType): CodeSystem? {
-        val resource: Resource? = cognitoAuthInterceptor.readFromUrl(httpRequest.pathInfo, null,"CodeSystem")
-        return if (resource is CodeSystem) resource else null
-    }
-    @Delete
-    fun create(theRequest: HttpServletRequest, @IdParam theId: IdType): MethodOutcome? {
-        return awsCodeSystem.delete(theId)
-    }
 
     @Search
     fun search(@RequiredParam(name = CodeSystem.SP_URL) url: TokenParam): List<CodeSystem> {
@@ -73,8 +41,7 @@ class CodeSystemProvider (@Qualifier("R4") private val fhirContext: FhirContext,
             if (resource.id == null) resource.setId(decodeUri)
             list.add(resource)
         } else {
-            val resources = awsCodeSystem.search(url)
-            if (resources.size>0) list.addAll(resources)
+
         }
 
         return list

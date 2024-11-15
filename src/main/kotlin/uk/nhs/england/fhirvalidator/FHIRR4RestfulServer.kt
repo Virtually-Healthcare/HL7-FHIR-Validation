@@ -31,8 +31,6 @@ class FHIRR4RestfulServer(
     @Autowired(required = false) val sqs : AmazonSQS?,
     val fhirPackage: List<FHIRPackage>,
     private val validateR4Provider: ValidateR4Provider,
-    private val openAPIProvider: OpenAPIProvider,
-    private val markdownProvider: MarkdownProvider,
     private val capabilityStatementProvider: CapabilityStatementProvider,
     private val messageDefinitionProvider: MessageDefinitionProvider,
     private val structureDefinitionProvider: StructureDefinitionProvider,
@@ -56,8 +54,6 @@ class FHIRR4RestfulServer(
         TimeZone.setDefault(TimeZone.getTimeZone("UTC"))
 
         registerProvider(validateR4Provider)
-        if (servicesProperties.Experimental) registerProvider(openAPIProvider)
-        if (servicesProperties.Experimental)registerProvider(markdownProvider)
         registerProvider(capabilityStatementProvider)
         registerProvider(messageDefinitionProvider)
         registerProvider(structureDefinitionProvider)

@@ -80,11 +80,7 @@ open class ValidationConfiguration(
     open fun validationSupportChain(
         @Qualifier("R4") fhirContext: FhirContext,
         switchedTerminologyServiceValidationSupport: SwitchedTerminologyServiceValidationSupport,
-        awsQuestionnaire: AWSQuestionnaire,
-        awsCodeSystem: AWSCodeSystem,
-        awsValueSet: AWSValueSet,
-        awsAuditEvent: AWSAuditEvent,
-        awsConceptMap: AWSConceptMap
+        awsAuditEvent: AWSAuditEvent
     ): ValidationSupportChain {
         val supportChain = ValidationSupportChain(
             DefaultProfileValidationSupport(fhirContext),
@@ -92,7 +88,7 @@ open class ValidationConfiguration(
             CommonCodeSystemsTerminologyService(fhirContext),
             switchedTerminologyServiceValidationSupport
         )
-        if (messageProperties.getAWSValidationSupport()) supportChain.addValidationSupport( AWSValidationSupport(fhirContext, awsQuestionnaire,awsCodeSystem,awsValueSet, awsConceptMap))
+        //if (messageProperties.getAWSValidationSupport()) supportChain.addValidationSupport( AWSValidationSupport(fhirContext, awsQuestionnaire,awsCodeSystem,awsValueSet, awsConceptMap))
         val manifest = getPackages()
         if (npmPackages != null) {
             /*

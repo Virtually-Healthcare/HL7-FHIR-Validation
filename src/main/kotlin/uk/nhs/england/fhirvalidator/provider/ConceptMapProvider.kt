@@ -6,20 +6,15 @@ import ca.uhn.fhir.rest.annotation.Search
 import ca.uhn.fhir.rest.param.TokenParam
 import ca.uhn.fhir.rest.server.IResourceProvider
 import org.hl7.fhir.common.hapi.validation.support.ValidationSupportChain
-import org.hl7.fhir.r4.model.Bundle
-import org.hl7.fhir.r4.model.CapabilityStatement
 import org.hl7.fhir.r4.model.ConceptMap
-import org.hl7.fhir.utilities.npm.NpmPackage
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.stereotype.Component
-import uk.nhs.england.fhirvalidator.awsProvider.AWSConceptMap
 import uk.nhs.england.fhirvalidator.service.ImplementationGuideParser
 import java.nio.charset.StandardCharsets
 
 @Component
 class ConceptMapProvider (@Qualifier("R4") private val fhirContext: FhirContext,
-                          private val supportChain: ValidationSupportChain,
-                        private val awsConceptMap: AWSConceptMap
+                          private val supportChain: ValidationSupportChain
 ) : IResourceProvider {
     /**
      * The getResourceType method comes from IResourceProvider, and must
@@ -42,8 +37,8 @@ class ConceptMapProvider (@Qualifier("R4") private val fhirContext: FhirContext,
             if (resource.id == null) resource.setId(decodeUri)
             list.add(resource)
         } else {
-            val resources = awsConceptMap.search(url)
-            if (resources.size>0) list.addAll(resources)
+         //   val resources = awsConceptMap.search(url)
+         //   if (resources.size>0) list.addAll(resources)
         }
         return list
     }
