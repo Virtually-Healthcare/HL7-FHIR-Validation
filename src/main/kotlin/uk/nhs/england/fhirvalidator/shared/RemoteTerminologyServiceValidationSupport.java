@@ -124,8 +124,9 @@ public class RemoteTerminologyServiceValidationSupport extends BaseValidationSup
             if (valueSet == null && StringUtils.isNotBlank(valueSetUrl)) valueSet = theValidationSupportContext.getRootValidationSupport().fetchValueSet(valueSetUrl);
             if (valueSet != null)
                 valueSetUrl = null;
-            // KGM also this line
-            if (!StringUtils.isBlank(theCode) && loinc != null && theCodeSystem.equals("http://loinc.org")) {
+            // UK ValueSet will normally use UK terminology (and no loinc), so for loinc and hl7 valuesets don't use UK onto server
+            if (!StringUtils.isBlank(theCode) && loinc != null && theCodeSystem.equals("http://loinc.org") ||
+                    (theValueSet instanceof ValueSet && ((ValueSet) theValueSet).hasUrl() && ((ValueSet) theValueSet).getUrl().startsWith("http://hl7.org/"))) {
                 return loinc.validateCode(theValidationSupportContext, theOptions, theCodeSystem, theCode, theDisplay, valueSetUrl);
             } else {
                 return this.invokeRemoteValidateCode(theCodeSystem, theCode, theDisplay, valueSetUrl, valueSet);
