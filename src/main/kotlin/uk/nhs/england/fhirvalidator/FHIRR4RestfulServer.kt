@@ -3,6 +3,7 @@ package uk.nhs.england.fhirvalidator
 import ca.uhn.fhir.context.FhirContext
 import ca.uhn.fhir.context.support.IValidationSupport
 import ca.uhn.fhir.rest.api.EncodingEnum
+import ca.uhn.fhir.rest.server.HardcodedServerAddressStrategy
 import ca.uhn.fhir.rest.server.RestfulServer
 import com.amazonaws.services.sqs.AmazonSQS
 import com.fasterxml.jackson.databind.ObjectMapper
@@ -51,6 +52,8 @@ class FHIRR4RestfulServer(
     override fun initialize() {
         super.initialize()
 
+        val serverBaseUrl = fhirServerProperties.server.baseUrl + "/FHIR/R4"
+        serverAddressStrategy = HardcodedServerAddressStrategy(serverBaseUrl)
         TimeZone.setDefault(TimeZone.getTimeZone("UTC"))
 
         registerProvider(validateR4Provider)

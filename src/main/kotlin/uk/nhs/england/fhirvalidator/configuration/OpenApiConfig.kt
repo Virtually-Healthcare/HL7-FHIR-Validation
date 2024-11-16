@@ -103,6 +103,12 @@ open class OpenApiConfig(@Qualifier("R4") val ctx : FhirContext,
         examples.put("Patient",
             Example().value(OASExamples().loadFHIRExample("Patient-EMIS-IM1-3.json",ctx))
         )
+        examples.put("Practitioner",
+            Example().value(OASExamples().loadFHIRExample("Practitioner-EMIS-IM1-4435f523-44ae-4cfb-903d-570b2887812c.json",ctx))
+        )
+        examples.put("QuestionnaireResponse - Vital Signs",
+            Example().value(OASExamples().loadFHIRExample("QuestionnaireResponse-VitalSigns.json",ctx))
+        )
         val validateItem = PathItem()
             .post(
                 Operation()

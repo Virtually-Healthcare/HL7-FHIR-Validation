@@ -10,7 +10,7 @@
 	</parent>
 	<groupId>uk.nhs.england</groupId>
 	<artifactId>FHIR-Validation</artifactId>
-	<version>7.4.5</version>
+	<version>7.4.6</version>
 	<name>FHIR-Validation</name>
 	<description>HAPI FHIR Validator using Spring Boot</description>
 
@@ -350,7 +350,7 @@
 										<exec executable="docker">
 											<arg value="build"/>
 											<arg value="-t"/>
-											<arg value="fhir-validator-r4:${project.version}"/>
+											<arg value="fhir-testing:${project.version}"/>
 											<arg value="."/>
 										</exec>
 									</target>
@@ -411,55 +411,6 @@
 							</execution>
 						</executions>
 					</plugin>
-					<plugin>
-						<groupId>org.apache.maven.plugins</groupId>
-						<artifactId>maven-antrun-plugin</artifactId>
-						<version>1.6</version>
-						<executions>
-							<execution>
-								<phase>install</phase>
-								<inherited>false</inherited>
-								<configuration>
-									<target>
-										<exec executable="docker">
-											<arg value="tag"/>
-											<arg value="fhir-validator-r4:${project.version}"/>
-											<arg value="fhir-validator-r4:latest"/>
-										</exec>
-										<exec executable="docker">
-											<arg value="tag"/>
-											<arg value="fhir-validator-r4:${project.version}"/>
-											<arg value="thorlogic/fhir-validator-r4:latest"/>
-										</exec>
-										<exec executable="docker">
-											<arg value="tag"/>
-											<arg value="fhir-validator-r4:${project.version}"/>
-											<arg value="thorlogic/fhir-validator-r4:${project.version}"/>
-										</exec>
-										<exec executable="docker">
-											<arg value="push"/>
-											<arg value="fhir-validator-r4:latest"/>
-										</exec>
-										<exec executable="docker">
-											<arg value="push"/>
-											<arg value="fhir-validator-r4:${project.version}"/>
-										</exec>
-										<exec executable="docker">
-											<arg value="push"/>
-											<arg value="thorlogic/fhir-validator-r4:${project.version}"/>
-										</exec>
-										<exec executable="docker">
-											<arg value="push"/>
-											<arg value="thorlogic/fhir-validator-r4:latest"/>
-										</exec>
-									</target>
-								</configuration>
-								<goals>
-									<goal>run</goal>
-								</goals>
-							</execution>
-						</executions>
-					</plugin>
 				</plugins>
 			</build>
 		</profile>
@@ -480,33 +431,6 @@
 						</configuration>
 					</plugin>
 					<plugin>
-						<groupId>org.codehaus.mojo</groupId>
-						<artifactId>exec-maven-plugin</artifactId>
-						<version>3.2.0</version>
-						<executions>
-							<execution>
-								<id>running ng build production</id>
-								<phase>generate-sources</phase>
-								<goals>
-									<goal>exec</goal>
-								</goals>
-								<configuration>
-									<workingDirectory>interoperability-standards-tools-skunkworks</workingDirectory>
-									<executable>ng</executable>
-									<arguments>
-										<argument>build</argument>
-										<argument>--configuration</argument>
-										<argument>production</argument>
-										<argument>--output-path</argument>
-										<argument>../src/main/resources/static</argument>
-										<argument>--base-href</argument>
-										<argument>./</argument>
-									</arguments>
-								</configuration>
-							</execution>
-						</executions>
-					</plugin>
-					<plugin>
 						<groupId>org.apache.maven.plugins</groupId>
 						<artifactId>maven-antrun-plugin</artifactId>
 						<version>1.6</version>
@@ -518,21 +442,21 @@
 									<target>
 										<exec executable="docker">
 											<arg value="tag"/>
-											<arg value="fhir-validator-r4:${project.version}"/>
-											<arg value="365027538941.dkr.ecr.eu-west-2.amazonaws.com/fhir-validator-r4:latest"/>
+											<arg value="fhir-testing:${project.version}"/>
+											<arg value="125526105555.dkr.ecr.eu-west-2.amazonaws.com/fhir-testing:latest"/>
 										</exec>
 										<exec executable="docker">
 											<arg value="tag"/>
-											<arg value="fhir-validator-r4:${project.version}"/>
-											<arg value="365027538941.dkr.ecr.eu-west-2.amazonaws.com/fhir-validator-r4:${project.version}"/>
+											<arg value="fhir-testing:${project.version}"/>
+											<arg value="125526105555.dkr.ecr.eu-west-2.amazonaws.com/fhir-testing:${project.version}"/>
 										</exec>
 										<exec executable="docker">
 											<arg value="push"/>
-											<arg value="365027538941.dkr.ecr.eu-west-2.amazonaws.com/fhir-validator-r4:latest"/>
+											<arg value="125526105555.dkr.ecr.eu-west-2.amazonaws.com/fhir-testing:latest"/>
 										</exec>
 										<exec executable="docker">
 											<arg value="push"/>
-											<arg value="365027538941.dkr.ecr.eu-west-2.amazonaws.com/fhir-validator-r4:${project.version}"/>
+											<arg value="125526105555.dkr.ecr.eu-west-2.amazonaws.com/fhir-testing:${project.version}"/>
 										</exec>
 									</target>
 								</configuration>
