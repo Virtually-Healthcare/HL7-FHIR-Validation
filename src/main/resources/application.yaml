@@ -19,7 +19,7 @@ management:
 fhir:
   isNHSEngland: false
   server:
-    name: FHIR Development and Testing (FHIR Validation) Skunkworks
+    name: FHIR Development and Testing (FHIR Validation)
     baseUrl: http://localhost:9001
     version: 7.4.5
 

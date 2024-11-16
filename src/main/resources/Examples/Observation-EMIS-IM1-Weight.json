@@ -1,0 +1,81 @@
+{
+  "resourceType": "Observation",
+  "id": "3201",
+  "meta": {
+    "profile" : [
+      "https://fhir.virtually.healthcare/StructureDefinition/Observation"
+    ]
+  },
+  "identifier": [
+    {
+      "use": "secondary",
+      "system": "https://emis.com/Id/Event/DBID",
+      "value": "3203",
+      "assigner": {
+        "identifier": {
+          "system": "https://fhir.nhs.uk/Id/ods-organization-code",
+          "value": "F83004"
+        }
+      }
+    },
+    {
+      "use": "usual",
+      "system": "https://emis.com/Id/Event/GUID",
+      "value": "9e77f499-1081-4ec5-ad71-4eeb71bd25ba",
+      "assigner": {
+        "identifier": {
+          "system": "https://fhir.nhs.uk/Id/ods-organization-code",
+          "value": "F83004"
+        }
+      }
+    }
+  ],
+  "status": "unknown",
+  "category": [
+    {
+      "coding": [
+        {
+          "system": "http://terminology.hl7.org/CodeSystem/observation-category",
+          "code": "vital-signs"
+        }
+      ]
+    }
+  ],
+  "code": {
+    "coding": [
+      {
+        "system": "http://snomed.info/sct",
+        "code": "27113001",
+        "display": "Body weight"
+      },
+      {
+        "system": "http://loinc.org",
+        "code": "29463-7"
+      }
+    ],
+    "text": "O/E - weight, 81 Kg"
+  },
+  "subject": {
+    "reference": "Patient/3",
+    "type": "Patient"
+  },
+  "effectiveDateTime": "2005-03-21T00:00:00+00:00",
+  "issued": "2005-03-21T00:00:00.000+00:00",
+  "performer": [
+    {
+      "reference": "Practitioner/4435f523-44ae-4cfb-903d-570b2887812c",
+      "type": "Practitioner",
+      "identifier": {
+        "system": "https://fhir.hl7.org.uk/Id/gmp-number",
+        "value": "G3226482"
+      },
+      "display": "Mrs Jean Kemp"
+    }
+  ],
+  "valueQuantity": {
+    "value": 81.0,
+    "unit": "Kg",
+    "system": "http://unitsofmeasure.org",
+    "code": "kg"
+  }
+}

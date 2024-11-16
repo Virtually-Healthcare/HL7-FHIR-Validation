@@ -1,0 +1,121 @@
+{
+  "resourceType": "Observation",
+  "id": "3114",
+  "meta": {
+    "profile" : [
+      "https://fhir.virtually.healthcare/StructureDefinition/Observation"
+    ]
+  },
+  "identifier": [
+    {
+      "use": "secondary",
+      "system": "https://emis.com/Id/Event/DBID",
+      "value": "3114",
+      "assigner": {
+        "identifier": {
+          "system": "https://fhir.nhs.uk/Id/ods-organization-code",
+          "value": "F83004"
+        }
+      }
+    },
+    {
+      "use": "usual",
+      "system": "https://emis.com/Id/Event/GUID",
+      "value": "cb41876b-ce8e-40c2-b6c1-1351d3e4e04a",
+      "assigner": {
+        "identifier": {
+          "system": "https://fhir.nhs.uk/Id/ods-organization-code",
+          "value": "F83004"
+        }
+      }
+    }
+  ],
+  "status": "unknown",
+  "category": [
+    {
+      "coding": [
+        {
+          "system": "http://terminology.hl7.org/CodeSystem/observation-category",
+          "code": "vital-signs"
+        }
+      ]
+    }
+  ],
+  "code": {
+    "coding": [
+      {
+        "system": "http://loinc.org",
+        "code": "85354-9"
+      },
+      {
+        "system": "http://snomed.info/sct",
+        "code": "75367002",
+        "display": "Blood pressure"
+      }
+    ],
+    "text": "Blood Pressure 148/88 mmHg"
+  },
+  "subject": {
+    "reference": "Patient/3",
+    "type": "Patient"
+  },
+  "effectiveDateTime": "2005-10-14T00:00:00+00:00",
+  "issued": "2005-10-14T00:00:00.000+00:00",
+  "performer": [
+    {
+      "reference": "Practitioner/3125f0c4-c773-48a6-bf33-10a5106f6448",
+      "type": "Practitioner",
+      "identifier": {
+        "system": "https://fhir.hl7.org.uk/Id/gmp-number",
+        "value": "G3371701"
+      },
+      "display": "Dr Brian Harding"
+    }
+  ],
+  "component": [
+    {
+      "code": {
+        "coding": [
+          {
+            "system": "http://snomed.info/sct",
+            "code": "72313002",
+            "display": "Systolic arterial pressure"
+          },
+          {
+            "system": "http://loinc.org",
+            "code": "8480-6"
+          }
+        ],
+        "text": "Systolic blood pressure, 148 mm Hg"
+      },
+      "valueQuantity": {
+        "value": 148.0,
+        "unit": "mm Hg",
+        "system": "http://unitsofmeasure.org",
+        "code": "mm[Hg]"
+      }
+    },
+    {
+      "code": {
+        "coding": [
+          {
+            "system": "http://snomed.info/sct",
+            "code": "1091811000000102",
+            "display": "Diastolic arterial pressure"
+          },
+          {
+            "system": "http://loinc.org",
+            "code": "8462-4"
+          }
+        ],
+        "text": "Diastolic blood pressure, 88 mm Hg"
+      },
+      "valueQuantity": {
+        "value": 88.0,
+        "unit": "mm Hg",
+        "system": "http://unitsofmeasure.org",
+        "code": "mm[Hg]"
+      }
+    }
+  ]
+}

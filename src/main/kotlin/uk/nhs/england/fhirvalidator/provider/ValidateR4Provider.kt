@@ -24,7 +24,7 @@ import uk.nhs.england.fhirvalidator.util.createOperationOutcome
 import java.net.URLDecoder
 import java.nio.charset.StandardCharsets
 import jakarta.servlet.http.HttpServletRequest
-import org.hl7.fhir.r4.utils.FHIRPathEngine
+import org.hl7.fhir.r4.fhirpath.FHIRPathEngine
 
 
 @Component
@@ -136,13 +136,16 @@ class ValidateR4Provider (
                         }
 
                     }
-                    if (issue.diagnostics.contains("http://unstats.un.org/unsd/")) {
+                    if (issue.diagnostics.contains("http://unstats.un.org/unsd/")
+                        || issue.diagnostics.contains("note that the validator cannot judge what is suitable")
+                        || issue.diagnostics.contains("A resource should have narrative for robust management")) {
                         issue.severity = OperationOutcome.IssueSeverity.INFORMATION
                     }
-                    if (issue.diagnostics.contains("note that the validator cannot judge what is suitable")) {
-                        issue.severity = OperationOutcome.IssueSeverity.INFORMATION
-                    }
-                    if (!issue.diagnostics.contains("Validation failed for 'http://loinc.org")) {
+                    if (!issue.diagnostics.contains("Validation failed for 'http://loinc.org")
+                        && !issue.diagnostics.contains("because \"theCodeSystem\"")
+                        && !issue.diagnostics.contains("because &quot;theCodeSystem&quot; is null")
+                        && !issue.diagnostics.contains("A resource should have narrative for robust management" )
+                        ) {
                         newIssue.add(issue)
                     }
                 }

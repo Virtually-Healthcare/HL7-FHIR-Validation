@@ -37,7 +37,7 @@ open class OpenApiConfig(@Qualifier("R4") val ctx : FhirContext,
    var VALIDATION = "Validation"
     var UTILITY = "Utility"
 
-    var CONFORMANCE = "FHIR Package Queries"
+    var CONFORMANCE = "Conformance"
 
     var LOINC = "LOINC"
 
@@ -57,22 +57,14 @@ open class OpenApiConfig(@Qualifier("R4") val ctx : FhirContext,
                     .title(fhirServerProperties.server.name)
                     .version(fhirServerProperties.server.version)
                     .description(
-                            "This server is a **proof of concept**, it contains experimental features and so not is recommended for live use. \n It is used internally by NHS England Interoperability Standards to support delivery of HL7 FHIR. \n"
-                            + "\n For official HL7 FHIR Validators, see:"
-                            + "\n - [HL7 FHIR Validator](https://confluence.hl7.org/display/FHIR/Using+the+FHIR+Validator) A command line utilty"
-                                    + "\n - [Validator GUI](https://validator.fhir.org/) A web based application "
-                            + "\n\n This server is preconfigured with the following FHIR Implementation Packages: \n\n"
+                            "This server is preconfigured with the following FHIR Implementation Packages: \n\n"
                             + " | Package | Version | Implementation Guide | \n"
                             + " |---|---|---| \n"
                                     + getPackages()
-                            + "\n\n This is an implementation of FHIR Validation [Asking a FHIR Server](https://hl7.org/fhir/R4/validation.html#op) and is built using [HAPI FHIR Validation](https://hapifhir.io/hapi-fhir/docs/validation/introduction.html). This is the same code base as the [official HL7 Validator](https://github.com/hapifhir/org.hl7.fhir.validator-wrapper), the main differences are: \n"
-                                    + "\n - Configuration and code to support code validation using NHS England Terminology Server."
-                                    + "\n - Support for validating **FHIR Messages** against definitions held in **FHIR MessageDefinition**"
-                                    + "\n - Default profile support configured via **FHIR CapabilityStatement**"
                             + "\n\n ### Terminology Testing (Coding)\n"
                             + "\n\n This server uses services from [NHS England Termonology Server](https://digital.nhs.uk/services/terminology-server) to perform terminology verification. The UK SNOMED CT version used for FHIR Validation is set by this ontology service. \n"
                             + "\n\n ### Open Source"
-                            + "\n\n Source code [GitHub](https://github.com/NHSDigital/IOPS-FHIR-Validation-Service)"
+                            + "\n\n Source code [GitHub](https://github.com/Virtually-Healthcare/HL7-FHIR-Validation)"
                     )
                     .termsOfService("http://swagger.io/terms/")
                     .license(License().name("Apache 2.0").url("http://springdoc.org"))
@@ -96,20 +88,20 @@ open class OpenApiConfig(@Qualifier("R4") val ctx : FhirContext,
         }
 
         val examples = LinkedHashMap<String,Example?>()
-        examples.put("Patient PDS",
-            Example().value(OASExamples().loadFHIRExample("Patient-PDS.json",ctx))
+        examples.put("Observation - Weight",
+            Example().value(OASExamples().loadFHIRExample("Observation-EMIS-IM1-Weight.json",ctx))
         )
-        examples.put("FHIR Message - Diagnostics Report (Unsolicited Observations)",
-            Example().value(OASExamples().loadFHIRExample("Bundle-message-Diagnostics-unsolicited-observations.json",ctx))
+        examples.put("Observation - Blood Pressure",
+            Example().value(OASExamples().loadFHIRExample("Observation-EMIS-IM1-BloodPressure.json",ctx))
         )
-        examples.put("FHIR Message - Diagnostics Request (Laboratory Order)",
-            Example().value(OASExamples().loadFHIRExample("Bundle-message-Diagnostics-laboratory-order.json",ctx))
+        examples.put("Document (FHIR) - Clinical Note",
+            Example().value(OASExamples().loadFHIRExample("FHIRDocument-EMIS-IM1-ab2539ee-fd55-4abc-9898-d4c1520dd2ba.json",ctx))
         )
-        examples.put("FHIR Message - Medications Request (Prescription Order)",
-            Example().value(OASExamples().loadFHIRExample("Bundle-message-Medications-prescription-order.json",ctx))
+        examples.put("MedicationRequest (prescription)",
+            Example().value(OASExamples().loadFHIRExample("MedicationRequest-EMIS-IM1-Amoxicillin.json",ctx))
         )
-        examples.put("FHIR Message - Medications Event (Dispense Notification)",
-            Example().value(OASExamples().loadFHIRExample("Bundle-message-Medications-dispense-notification.json",ctx))
+        examples.put("Patient",
+            Example().value(OASExamples().loadFHIRExample("Patient-EMIS-IM1-3.json",ctx))
         )
         val validateItem = PathItem()
             .post(
@@ -123,16 +115,8 @@ open class OpenApiConfig(@Qualifier("R4") val ctx : FhirContext,
                         .`in`("query")
                         .required(false)
                         .style(Parameter.StyleEnum.SIMPLE)
-                        .description("The uri that identifies the profile (e.g. https://fhir.hl7.org.uk/StructureDefinition/UKCore-Patient). If no profile uri is supplied, NHS England defaults will be used.")
+                        .description("The uri that identifies the profile (e.g. https://fhir.hl7.org.uk/StructureDefinition/UKCore-Patient). If no profile uri is supplied, defaults from supplied packages will be used (from the FHIR CapabilityStatements).")
                        // Removed example profile
-                        .schema(StringSchema().format("token")))
-                    .addParametersItem(Parameter()
-                        .name("imposeProfile")
-                        .`in`("query")
-                        .required(false)
-                        .style(Parameter.StyleEnum.SIMPLE)
-                        .description("`true | false`. Selected true will also validate the resource against the imposeProfile listed in this servers CapabilityStatement")
-                        // Removed example profile
                         .schema(StringSchema().format("token")))
                     .requestBody(RequestBody().content(Content()
                         .addMediaType("application/fhir+json", MediaType()
@@ -237,6 +221,33 @@ open class OpenApiConfig(@Qualifier("R4") val ctx : FhirContext,
 
        }
 
+/*
+oas.path("/FHIR/R4/CapabilityStatement",getPathItem(CONFORMANCE, "CapabilityStatement", "Capability Statement", "url", "https://fhir.nhs.uk/CapabilityStatement/apim-medicines-api-example" ,"" ))
+        oas.path("/FHIR/R4/NamingSystem",getPathItem(CONFORMANCE,"NamingSystem", "Naming System", "value", "https://fhir.hl7.org.uk/Id/gmc-number", "" ))
+        oas.path("/FHIR/R4/OperationDefinition",
+            getPathItem(CONFORMANCE,"OperationDefinition", "Operation Definition", "url", "https://fhir.nhs.uk/OperationDefinition/MessageHeader-process-message", "" )
+        )
+        oas.path("/FHIR/R4/SearchParameter",
+            getPathItem(CONFORMANCE,"SearchParameter", "Search Parameter", "url" , "https://fhir.nhs.uk/SearchParameter/immunization-procedure-code", "")
+                .addParametersItem(Parameter()
+                    .name("code")
+                    .`in`("query")
+                    .required(false)
+                    .style(Parameter.StyleEnum.SIMPLE)
+                    .description("Code used in URL")
+                    .schema(StringSchema())
+                    )
+                .addParametersItem(Parameter()
+                    .name("base")
+                    .`in`("query")
+                    .required(false)
+                    .style(Parameter.StyleEnum.SIMPLE)
+                    .description("The resource type(s) this search parameter applies to")
+                    .schema(StringSchema())
+                )
+        )
+
+        oas.path("/FHIR/R4/StructureMap",getPathItem(CONFORMANCE, "StructureMap", "Structure Map", "url" , "http://fhir.nhs.uk/StructureMap/MedicationRepeatInformation-Extension-3to4", ""))
 
         oas.path("/FHIR/R4/StructureDefinition",
             getPathItem(CONFORMANCE,"StructureDefinition", "Structure Definition (profile)", "url", "https://fhir.hl7.org.uk/StructureDefinition/UKCore-Patient" ,"" )
@@ -278,28 +289,15 @@ open class OpenApiConfig(@Qualifier("R4") val ctx : FhirContext,
 
 
         oas.path("/FHIR/R4/MessageDefinition",getPathItem(CONFORMANCE,"MessageDefinition", "Message Definition", "url" , "https://fhir.nhs.uk/MessageDefinition/prescription-order", ""))
-
+*/
 
         if (terminologyValidationProperties.url !== null) {
             // SVCM
 
-            // ITI-95 Query Value Set
-            var pathItem = getPathItem(
-                getTerminologyTagName(ONTOLOGY),
-                "ValueSet",
-                "Value Set",
-                "url",
-                "https://fhir.nhs.uk/ValueSet/NHSDigital-MedicationRequest-Code",
-                "This transaction is used by the Terminology Consumer to find value sets based on criteria it\n" +
-                        "provides in the query parameters of the request message, or to retrieve a specific value set. The\n" +
-                        "request is received by the Terminology Repository. The Terminology Repository processes the\n" +
-                        "request and returns a response of the matching value sets."
-            )
-            oas.path("/FHIR/R4/ValueSet", pathItem)
 
             // ITI 96 Query Code System
 
-            pathItem = getPathItem(
+            var pathItem = getPathItem(
                 getTerminologyTagName(ONTOLOGY),
                 "CodeSystem",
                 "Code System",
@@ -311,6 +309,163 @@ open class OpenApiConfig(@Qualifier("R4") val ctx : FhirContext,
                         "returns a response of the matching code systems."
             )
             oas.path("/FHIR/R4/CodeSystem", pathItem)
+
+            // Lookup Code [ITI-98]
+            val lookupItem = PathItem()
+                .get(
+                    Operation()
+                        .addTagsItem(getTerminologyTagName(ONTOLOGY))
+                        .summary("Lookup a Code in a Code System")
+                        .description(
+                            "This transaction is used by the Terminology Consumer to lookup a given code to return the full " +
+                                    "details. The request is received by the Terminology Repository. The Terminology Repository " +
+                                    "processes the request and returns a response of the code details as a Parameters Resource." +
+                                    "\n\nFHIR Definition [lookup](https://www.hl7.org/fhir/R4/operation-codesystem-lookup.html)"
+                        )
+                        .responses(getApiResponses())
+                        .addParametersItem(
+                            Parameter()
+                                .name("code")
+                                .`in`("query")
+                                .required(false)
+                                .style(Parameter.StyleEnum.SIMPLE)
+                                .description("The code that is to be located. If a code is provided, a system must be provided")
+                                .schema(StringSchema().format("code"))
+                                .example("15517911000001104")
+                        )
+                        .addParametersItem(
+                            Parameter()
+                                .name("system")
+                                .`in`("query")
+                                .required(false)
+                                .style(Parameter.StyleEnum.SIMPLE)
+                                .description("The system for the code that is to be located")
+                                .schema(StringSchema().format("url"))
+                                .example("http://snomed.info/sct")
+                        )
+                        .addParametersItem(
+                            Parameter()
+                                .name("version")
+                                .`in`("query")
+                                .required(false)
+                                .style(Parameter.StyleEnum.SIMPLE)
+                                .description("The version of the system, if one was provided in the source data")
+                                .schema(StringSchema())
+                        )
+                        .addParametersItem(
+                            Parameter()
+                                .name("coding")
+                                .`in`("query")
+                                .required(false)
+                                .style(Parameter.StyleEnum.SIMPLE)
+                                .description("The system for the code that is to be located")
+                                .schema(StringSchema().format("Coding"))
+                        )
+                    /*      .addParametersItem(
+                              Parameter()
+                                  .name("date")
+                                  .`in`("query")
+                                  .required(false)
+                                  .style(Parameter.StyleEnum.SIMPLE)
+                                  .description("The date for which the information should be returned.")
+                                  .schema(StringSchema().format("dateTime"))
+                          )
+                          .addParametersItem(
+                              Parameter()
+                                  .name("displayLanguage")
+                                  .`in`("query")
+                                  .required(false)
+                                  .style(Parameter.StyleEnum.SIMPLE)
+                                  .description("The requested language for display (see \$expand.displayLanguage)")
+                                  .schema(StringSchema().format("code"))
+                          ) */
+                    /*      .addParametersItem(Parameter()
+                        .name("property")
+                        .`in`("query")
+                        .required(false)
+                        .style(Parameter.StyleEnum.SPACEDELIMITED)
+                        .explode(true)
+                        .description("A property that the client wishes to be returned in the output. If no properties are specified, the server chooses what to return.")
+                        .schema(StringSchema().format("code").maxItems(10))
+                        .example("code display property fullySpecifiedName")) */
+                )
+
+            oas.path("/FHIR/R4/CodeSystem/\$lookup", lookupItem)
+
+
+            // Terminology Misc
+
+            val subsumesItem = PathItem()
+                .get(
+                    Operation()
+                        .addTagsItem(ONTOLOGY)
+                        .summary("Test the subsumption relationship between code A and code B given the semantics of subsumption in the underlying code system ")
+                        .description("[subsumes](https://hl7.org/fhir/R4/codesystem-operation-subsumes.html)")
+                        .responses(getApiResponses())
+                        .addParametersItem(
+                            Parameter()
+                                .name("codeA")
+                                .`in`("query")
+                                .required(true)
+                                .style(Parameter.StyleEnum.SIMPLE)
+                                .description("The \"A\" code that is to be tested.")
+                                .schema(StringSchema().format("code"))
+                                .example("15517911000001104")
+                        )
+                        .addParametersItem(
+                            Parameter()
+                                .name("codeB")
+                                .`in`("query")
+                                .required(true)
+                                .style(Parameter.StyleEnum.SIMPLE)
+                                .description("The \"B\" code that is to be tested.")
+                                .schema(StringSchema().format("code"))
+                                .example("15513411000001100")
+                        )
+                        .addParametersItem(
+                            Parameter()
+                                .name("system")
+                                .`in`("query")
+                                .required(true)
+                                .style(Parameter.StyleEnum.SIMPLE)
+                                .description("The code system in which subsumption testing is to be performed. This must be provided unless the operation is invoked on a code system instance")
+                                .schema(StringSchema())
+                                .example("http://snomed.info/sct")
+                        )
+
+                )
+            oas.path("/FHIR/R4/CodeSystem/\$subsumes",subsumesItem)
+
+            // Query Concept Map [ITI-100]
+
+            oas.path(
+                "/FHIR/R4/ConceptMap", getPathItem(
+                    getTerminologyTagName(ONTOLOGY),
+                    "ConceptMap",
+                    "Concept Map",
+                    "url",
+                    "https://fhir.nhs.uk/ConceptMap/eps-issue-code-to-fhir-issue-type",
+                    "This transaction is used by the Terminology Consumer that supports the Translate Option to " +
+                            "solicit information about concept maps whose data match data provided in the query parameters " +
+                            "on the request message. The request is received by the Terminology Repository that supports the " +
+                            "Translate Option. The Terminology Repository processes the request and returns a response of " +
+                            "the matching concept maps."
+                )
+            )
+
+            // ITI-95 Query Value Set
+            pathItem = getPathItem(
+                getTerminologyTagName(ONTOLOGY),
+                "ValueSet",
+                "Value Set",
+                "url",
+                "https://fhir.nhs.uk/ValueSet/NHSDigital-MedicationRequest-Code",
+                "This transaction is used by the Terminology Consumer to find value sets based on criteria it\n" +
+                        "provides in the query parameters of the request message, or to retrieve a specific value set. The\n" +
+                        "request is received by the Terminology Repository. The Terminology Repository processes the\n" +
+                        "request and returns a response of the matching value sets."
+            )
+            oas.path("/FHIR/R4/ValueSet", pathItem)
 
             // ITI 97 Expand Value Set [
             oas.path(
@@ -460,87 +615,6 @@ open class OpenApiConfig(@Qualifier("R4") val ctx : FhirContext,
 
             oas.path("/FHIR/R4/ValueSet/\$expandSCT", searchItem)
 
-            // Lookup Code [ITI-98]
-            val lookupItem = PathItem()
-                .get(
-                    Operation()
-                        .addTagsItem(getTerminologyTagName(ONTOLOGY))
-                        .summary("Lookup a Code in a Code System")
-                        .description(
-                            "This transaction is used by the Terminology Consumer to lookup a given code to return the full " +
-                                    "details. The request is received by the Terminology Repository. The Terminology Repository " +
-                                    "processes the request and returns a response of the code details as a Parameters Resource." +
-                                    "\n\nFHIR Definition [lookup](https://www.hl7.org/fhir/R4/operation-codesystem-lookup.html)"
-                        )
-                        .responses(getApiResponses())
-                        .addParametersItem(
-                            Parameter()
-                                .name("code")
-                                .`in`("query")
-                                .required(false)
-                                .style(Parameter.StyleEnum.SIMPLE)
-                                .description("The code that is to be located. If a code is provided, a system must be provided")
-                                .schema(StringSchema().format("code"))
-                                .example("15517911000001104")
-                        )
-                        .addParametersItem(
-                            Parameter()
-                                .name("system")
-                                .`in`("query")
-                                .required(false)
-                                .style(Parameter.StyleEnum.SIMPLE)
-                                .description("The system for the code that is to be located")
-                                .schema(StringSchema().format("url"))
-                                .example("http://snomed.info/sct")
-                        )
-                        .addParametersItem(
-                            Parameter()
-                                .name("version")
-                                .`in`("query")
-                                .required(false)
-                                .style(Parameter.StyleEnum.SIMPLE)
-                                .description("The version of the system, if one was provided in the source data")
-                                .schema(StringSchema())
-                        )
-                        .addParametersItem(
-                            Parameter()
-                                .name("coding")
-                                .`in`("query")
-                                .required(false)
-                                .style(Parameter.StyleEnum.SIMPLE)
-                                .description("The system for the code that is to be located")
-                                .schema(StringSchema().format("Coding"))
-                        )
-                  /*      .addParametersItem(
-                            Parameter()
-                                .name("date")
-                                .`in`("query")
-                                .required(false)
-                                .style(Parameter.StyleEnum.SIMPLE)
-                                .description("The date for which the information should be returned.")
-                                .schema(StringSchema().format("dateTime"))
-                        )
-                        .addParametersItem(
-                            Parameter()
-                                .name("displayLanguage")
-                                .`in`("query")
-                                .required(false)
-                                .style(Parameter.StyleEnum.SIMPLE)
-                                .description("The requested language for display (see \$expand.displayLanguage)")
-                                .schema(StringSchema().format("code"))
-                        ) */
-                    /*      .addParametersItem(Parameter()
-                        .name("property")
-                        .`in`("query")
-                        .required(false)
-                        .style(Parameter.StyleEnum.SPACEDELIMITED)
-                        .explode(true)
-                        .description("A property that the client wishes to be returned in the output. If no properties are specified, the server chooses what to return.")
-                        .schema(StringSchema().format("code").maxItems(10))
-                        .example("code display property fullySpecifiedName")) */
-                )
-
-            oas.path("/FHIR/R4/CodeSystem/\$lookup", lookupItem)
 
             // Validate Code [ITI-99]
 
@@ -599,66 +673,7 @@ open class OpenApiConfig(@Qualifier("R4") val ctx : FhirContext,
                 )
             oas.path("/FHIR/R4/ValueSet/\$validate-code", validateCodeItem)
 
-            // Query Concept Map [ITI-100]
 
-            oas.path(
-                "/FHIR/R4/ConceptMap", getPathItem(
-                    getTerminologyTagName(ONTOLOGY),
-                    "ConceptMap",
-                    "Concept Map",
-                    "url",
-                    "https://fhir.nhs.uk/ConceptMap/eps-issue-code-to-fhir-issue-type",
-                    "This transaction is used by the Terminology Consumer that supports the Translate Option to " +
-                            "solicit information about concept maps whose data match data provided in the query parameters " +
-                            "on the request message. The request is received by the Terminology Repository that supports the " +
-                            "Translate Option. The Terminology Repository processes the request and returns a response of " +
-                            "the matching concept maps."
-                )
-            )
-
-
-            // Terminology Misc
-
-            val subsumesItem = PathItem()
-                .get(
-                    Operation()
-                        .addTagsItem(ONTOLOGY)
-                        .summary("Test the subsumption relationship between code A and code B given the semantics of subsumption in the underlying code system ")
-                        .description("[subsumes](https://hl7.org/fhir/R4/codesystem-operation-subsumes.html)")
-                        .responses(getApiResponses())
-                        .addParametersItem(
-                            Parameter()
-                                .name("codeA")
-                                .`in`("query")
-                                .required(true)
-                                .style(Parameter.StyleEnum.SIMPLE)
-                                .description("The \"A\" code that is to be tested.")
-                                .schema(StringSchema().format("code"))
-                                .example("15517911000001104")
-                        )
-                        .addParametersItem(
-                            Parameter()
-                                .name("codeB")
-                                .`in`("query")
-                                .required(true)
-                                .style(Parameter.StyleEnum.SIMPLE)
-                                .description("The \"B\" code that is to be tested.")
-                                .schema(StringSchema().format("code"))
-                                .example("15513411000001100")
-                        )
-                        .addParametersItem(
-                            Parameter()
-                                .name("system")
-                                .`in`("query")
-                                .required(true)
-                                .style(Parameter.StyleEnum.SIMPLE)
-                                .description("The code system in which subsumption testing is to be performed. This must be provided unless the operation is invoked on a code system instance")
-                                .schema(StringSchema())
-                                .example("http://snomed.info/sct")
-                        )
-
-                )
-            oas.path("/FHIR/R4/CodeSystem/\$subsumes",subsumesItem)
         }
         if (servicesProperties.LOINC) {
             oas.addTagsItem(io.swagger.v3.oas.models.tags.Tag()
@@ -666,7 +681,76 @@ open class OpenApiConfig(@Qualifier("R4") val ctx : FhirContext,
                 .description("[LOINC Terminology Service using HL7® FHIR](https://loinc.org/fhir/)")
             )
 
+            // ITI 96 Query Code System
+
+            val lookupItem = PathItem()
+                .get(
+                    Operation()
+                        .addTagsItem(getTerminologyTagName(LOINC))
+                        .summary("Lookup a Code in a Value Set")
+                        .description(
+                            "This transaction is used by the Terminology Consumer to lookup a given code to return the full " +
+                                    "details. The request is received by the Terminology Repository. The Terminology Repository " +
+                                    "processes the request and returns a response of the code details as a Parameters Resource." +
+                                    "\n\nFHIR Definition [lookup](https://www.hl7.org/fhir/R4/operation-codesystem-lookup.html)"
+                        )
+                        .responses(getApiResponses())
+                        .addParametersItem(
+                            Parameter()
+                                .name("code")
+                                .`in`("query")
+                                .required(false)
+                                .style(Parameter.StyleEnum.SIMPLE)
+                                .description("The code that is to be located. If a code is provided, a system must be provided")
+                                .schema(StringSchema().format("code"))
+                                .example("LA4389-8")
+                        )
+                        .addParametersItem(
+                            Parameter()
+                                .name("system")
+                                .`in`("query")
+                                .required(false)
+                                .style(Parameter.StyleEnum.SIMPLE)
+                                .description("The system for the code that is to be located")
+                                .schema(StringSchema().format("url"))
+                                .example("http://loinc.org")
+                        )
+                        .addParametersItem(
+                            Parameter()
+                                .name("version")
+                                .`in`("query")
+                                .required(false)
+                                .style(Parameter.StyleEnum.SIMPLE)
+                                .description("The version of the system, if one was provided in the source data")
+                                .schema(StringSchema())
+                        )
+
+                        .addParametersItem(Parameter()
+                            .name("property")
+                            .`in`("query")
+                            .required(false)
+                            .style(Parameter.StyleEnum.SPACEDELIMITED)
+                            .explode(true)
+                            .description("A property that the client wishes to be returned in the output. If no properties are specified, the server chooses what to return.")
+                            .schema(StringSchema().format("code").maxItems(10)
+                            ))
+                )
+
+            oas.path("/LOINC/R4/CodeSystem/\$lookup", lookupItem)
+
+
+
             var pathItem = getPathItem(
+                getTerminologyTagName(LOINC),
+                "ConceptMap",
+                "Concept Map",
+                "url",
+                "http://loinc.org/cm/loinc-parts-to-snomed-ct",
+                ""
+            )
+            oas.path("/LOINC/R4/ConceptMap", pathItem)
+
+            pathItem = getPathItem(
                 getTerminologyTagName(LOINC),
                 "ValueSet",
                 "Value Set",
@@ -678,16 +762,6 @@ open class OpenApiConfig(@Qualifier("R4") val ctx : FhirContext,
                         "request and returns a response of the matching value sets."
             )
             oas.path("/LOINC/R4/ValueSet", pathItem)
-
-            pathItem = getPathItem(
-                getTerminologyTagName(LOINC),
-                "ConceptMap",
-                "Concept Map",
-                "url",
-                "http://loinc.org/cm/loinc-parts-to-snomed-ct",
-                ""
-            )
-            oas.path("/LOINC/R4/ConceptMap", pathItem)
 
             oas.path(
                 "/LOINC/R4/ValueSet/\$expand", PathItem()
@@ -752,63 +826,6 @@ open class OpenApiConfig(@Qualifier("R4") val ctx : FhirContext,
                             )
                     )
             )
-
-            // ITI 96 Query Code System
-
-            val lookupItem = PathItem()
-                .get(
-                    Operation()
-                        .addTagsItem(getTerminologyTagName(LOINC))
-                        .summary("Lookup a Code in a Value Set")
-                        .description(
-                            "This transaction is used by the Terminology Consumer to lookup a given code to return the full " +
-                                    "details. The request is received by the Terminology Repository. The Terminology Repository " +
-                                    "processes the request and returns a response of the code details as a Parameters Resource." +
-                                    "\n\nFHIR Definition [lookup](https://www.hl7.org/fhir/R4/operation-codesystem-lookup.html)"
-                        )
-                        .responses(getApiResponses())
-                        .addParametersItem(
-                            Parameter()
-                                .name("code")
-                                .`in`("query")
-                                .required(false)
-                                .style(Parameter.StyleEnum.SIMPLE)
-                                .description("The code that is to be located. If a code is provided, a system must be provided")
-                                .schema(StringSchema().format("code"))
-                                .example("LA4389-8")
-                        )
-                        .addParametersItem(
-                            Parameter()
-                                .name("system")
-                                .`in`("query")
-                                .required(false)
-                                .style(Parameter.StyleEnum.SIMPLE)
-                                .description("The system for the code that is to be located")
-                                .schema(StringSchema().format("url"))
-                                .example("http://loinc.org")
-                        )
-                        .addParametersItem(
-                            Parameter()
-                                .name("version")
-                                .`in`("query")
-                                .required(false)
-                                .style(Parameter.StyleEnum.SIMPLE)
-                                .description("The version of the system, if one was provided in the source data")
-                                .schema(StringSchema())
-                        )
-
-                       .addParametersItem(Parameter()
-                        .name("property")
-                        .`in`("query")
-                        .required(false)
-                        .style(Parameter.StyleEnum.SPACEDELIMITED)
-                        .explode(true)
-                        .description("A property that the client wishes to be returned in the output. If no properties are specified, the server chooses what to return.")
-                        .schema(StringSchema().format("code").maxItems(10)
-                        ))
-                )
-
-            oas.path("/LOINC/R4/CodeSystem/\$lookup", lookupItem)
 
         }
 
@@ -904,32 +921,6 @@ open class OpenApiConfig(@Qualifier("R4") val ctx : FhirContext,
                     .addTagsItem(CONFORMANCE)
                     .summary("server-capabilities: Fetch the server FHIR CapabilityStatement").responses(getApiResponses())))
 
-        oas.path("/FHIR/R4/CapabilityStatement",getPathItem(CONFORMANCE, "CapabilityStatement", "Capability Statement", "url", "https://fhir.nhs.uk/CapabilityStatement/apim-medicines-api-example" ,"" ))
-        oas.path("/FHIR/R4/NamingSystem",getPathItem(CONFORMANCE,"NamingSystem", "Naming System", "value", "https://fhir.hl7.org.uk/Id/gmc-number", "" ))
-        oas.path("/FHIR/R4/OperationDefinition",
-            getPathItem(CONFORMANCE,"OperationDefinition", "Operation Definition", "url", "https://fhir.nhs.uk/OperationDefinition/MessageHeader-process-message", "" )
-        )
-        oas.path("/FHIR/R4/SearchParameter",
-            getPathItem(CONFORMANCE,"SearchParameter", "Search Parameter", "url" , "https://fhir.nhs.uk/SearchParameter/immunization-procedure-code", "")
-                .addParametersItem(Parameter()
-                    .name("code")
-                    .`in`("query")
-                    .required(false)
-                    .style(Parameter.StyleEnum.SIMPLE)
-                    .description("Code used in URL")
-                    .schema(StringSchema())
-                    )
-                .addParametersItem(Parameter()
-                    .name("base")
-                    .`in`("query")
-                    .required(false)
-                    .style(Parameter.StyleEnum.SIMPLE)
-                    .description("The resource type(s) this search parameter applies to")
-                    .schema(StringSchema())
-                )
-        )
-
-        oas.path("/FHIR/R4/StructureMap",getPathItem(CONFORMANCE, "StructureMap", "Structure Map", "url" , "http://fhir.nhs.uk/StructureMap/MedicationRepeatInformation-Extension-3to4", ""))
 
         val examplesOAS = LinkedHashMap<String,Example?>()
         examplesOAS.put("Imaging API",
@@ -1156,6 +1147,9 @@ open class OpenApiConfig(@Qualifier("R4") val ctx : FhirContext,
 
         manifest!!.forEach {
             packages += " | "+ it.packageName + " | " + it.version + " | "
+            if (it.packageName.contains("virtually")) {
+                packages +=  "[Virtually Healthcare HL7 FHIR R4 Implementation Guide](https://virtually-healthcare.github.io/HL7-FHIR-Implementation-Guide/)"
+            }
             if (it.packageName.contains("ukcore")) {
                 packages +=  "[UK Core Implementation Guide](https://simplifier.net/guide/ukcoreversionhistory?version=current)"
             } else if (it.packageName.contains("diagnostics")) {
