@@ -179,6 +179,7 @@ open class ValidationConfiguration(
             Predicate { it.startsWith("http://snomed.info/sct")
                     || it.startsWith("https://dmd.nhs.uk")
                     || it.startsWith("http://read.info")
+                    || it.startsWith("http://loinc.org")
                     || it.startsWith("http://hl7.org/fhir/sid/icd")
             }
         )
@@ -188,14 +189,36 @@ open class ValidationConfiguration(
     @ConditionalOnProperty("terminology.url")
     open fun remoteTerminologyServiceValidationSupport(
         @Qualifier("R4") fhirContext: FhirContext,
-        optionalAuthorizedClientManager: Optional<OAuth2AuthorizedClientManager>
+        optionalAuthorizedClientManager: Optional<OAuth2AuthorizedClientManager>,
+        loincRemoteTerminologyServiceValidationSupport: RemoteTerminologyServiceValidationSupport
     ): uk.nhs.england.fhirvalidator.shared.RemoteTerminologyServiceValidationSupport {
         logger.info("Using remote terminology server at ${terminologyValidationProperties.url}")
         val validationSupport =
             uk.nhs.england.fhirvalidator.shared.RemoteTerminologyServiceValidationSupport(
-                fhirContext
+                fhirContext,loincRemoteTerminologyServiceValidationSupport
             )
         validationSupport.setBaseUrl(terminologyValidationProperties.url)
+
+        if (optionalAuthorizedClientManager.isPresent) {
+            val authorizedClientManager = optionalAuthorizedClientManager.get()
+            val accessTokenInterceptor = AccessTokenInterceptor(authorizedClientManager)
+            validationSupport.addClientInterceptor(accessTokenInterceptor)
+        }
+
+        return validationSupport
+    }
+    @Bean
+    @ConditionalOnProperty("terminology.urlLOINC")
+    open fun remoteTerminologyServiceValidationLOINCSupport(
+        @Qualifier("R4") fhirContext: FhirContext,
+        optionalAuthorizedClientManager: Optional<OAuth2AuthorizedClientManager>
+    ): RemoteTerminologyServiceValidationSupport {
+        logger.info("Using remote terminology server at ${terminologyValidationProperties.urlLOINC}")
+        val validationSupport =
+            RemoteTerminologyServiceValidationSupport(
+                fhirContext
+            )
+        validationSupport.setBaseUrl(terminologyValidationProperties.urlLOINC)
 
         if (optionalAuthorizedClientManager.isPresent) {
             val authorizedClientManager = optionalAuthorizedClientManager.get()

@@ -40,12 +40,13 @@ public class RemoteTerminologyServiceValidationSupport extends BaseValidationSup
 
     private String myBaseUrl;
     private List<Object> myClientInterceptors = new ArrayList();
-
-    public RemoteTerminologyServiceValidationSupport(FhirContext theFhirContext) {
+    private org.hl7.fhir.common.hapi.validation.support.RemoteTerminologyServiceValidationSupport loinc;
+    public RemoteTerminologyServiceValidationSupport(FhirContext theFhirContext, org.hl7.fhir.common.hapi.validation.support.RemoteTerminologyServiceValidationSupport loinc) {
 
         super(theFhirContext);
         theFhirContext.getRestfulClientFactory().setConnectTimeout(2*60*1000); // Oh yes
         System.out.println(theFhirContext.getRestfulClientFactory().getConnectTimeout());
+        this.loinc = loinc;
     }
 
     public String getBaseUrl() {
@@ -97,8 +98,14 @@ public class RemoteTerminologyServiceValidationSupport extends BaseValidationSup
             String theDisplay,
             String theValueSetUrl) {
         // KGM this change for a ValueSet from validator to be used (and not use the one on the ontology server
-        if (theValueSetUrl != null) return this.invokeRemoteValidateCode(theCodeSystem, theCode, theDisplay, null, theValidationSupportContext.getRootValidationSupport().fetchValueSet(theValueSetUrl));
-        return this.invokeRemoteValidateCode(theCodeSystem, theCode, theDisplay, theValueSetUrl, (IBaseResource)null);
+
+        if (!StringUtils.isBlank(theCode) && loinc != null && theCodeSystem.equals("http://loinc.org")) {
+            return loinc.validateCode(theValidationSupportContext, theOptions, theCodeSystem, theCode, theDisplay, theValueSetUrl);
+        } else {
+            if (theValueSetUrl != null)
+                return this.invokeRemoteValidateCode(theCodeSystem, theCode, theDisplay, null, theValidationSupportContext.getRootValidationSupport().fetchValueSet(theValueSetUrl));
+            return this.invokeRemoteValidateCode(theCodeSystem, theCode, theDisplay, theValueSetUrl, (IBaseResource) null);
+        }
     }
 
     public CodeValidationResult validateCodeInValueSet(
@@ -118,7 +125,11 @@ public class RemoteTerminologyServiceValidationSupport extends BaseValidationSup
             if (valueSet != null)
                 valueSetUrl = null;
             // KGM also this line
-            return this.invokeRemoteValidateCode(theCodeSystem, theCode, theDisplay, valueSetUrl, valueSet);
+            if (!StringUtils.isBlank(theCode) && loinc != null && theCodeSystem.equals("http://loinc.org")) {
+                return loinc.validateCode(theValidationSupportContext, theOptions, theCodeSystem, theCode, theDisplay, valueSetUrl);
+            } else {
+                return this.invokeRemoteValidateCode(theCodeSystem, theCode, theDisplay, valueSetUrl, valueSet);
+            }
         }
     }
 
@@ -159,6 +170,7 @@ public class RemoteTerminologyServiceValidationSupport extends BaseValidationSup
     }
 
     protected CodeValidationResult invokeRemoteValidateCode(String theCodeSystem, String theCode, String theDisplay, String theValueSetUrl, IBaseResource theValueSet) {
+
         if (StringUtils.isBlank(theCode)) {
             return null;
         } else {

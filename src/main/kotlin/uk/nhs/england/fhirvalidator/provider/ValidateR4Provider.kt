@@ -130,7 +130,8 @@ class ValidateR4Provider (
                         }
                         // This is to downgrade onto server issues to information.
                         if (!issue.diagnostics.contains(".uk") && (issue.diagnostics.contains("A usable code system with URL")
-                            || issue.diagnostics.contains("LOINC is not indexed!"))) {
+                        //    || issue.diagnostics.contains("LOINC is not indexed!")
+                                )) {
                             // This is probably ontology server issue so degrade warning to information
                             issue.severity = OperationOutcome.IssueSeverity.INFORMATION
                         }
@@ -141,8 +142,10 @@ class ValidateR4Provider (
                         || issue.diagnostics.contains("A resource should have narrative for robust management")) {
                         issue.severity = OperationOutcome.IssueSeverity.INFORMATION
                     }
-                    if (!issue.diagnostics.contains("Validation failed for 'http://loinc.org")
-                        && !issue.diagnostics.contains("because \"theCodeSystem\"")
+                    if (//!issue.diagnostics.contains("Validation failed for 'http://loinc.org")
+                        //&&
+                        !issue.diagnostics.contains("because \"theCodeSystem\"")
+                        && !issue.diagnostics.contains("but you should check that it's not intended to match a slice")
                         && !issue.diagnostics.contains("because &quot;theCodeSystem&quot; is null")
                         && !issue.diagnostics.contains("A resource should have narrative for robust management" )
                         ) {
