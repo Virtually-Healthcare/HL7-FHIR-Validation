@@ -25,6 +25,7 @@ import java.net.URLDecoder
 import java.nio.charset.StandardCharsets
 import jakarta.servlet.http.HttpServletRequest
 import org.hl7.fhir.r4.fhirpath.FHIRPathEngine
+import org.hl7.fhir.r4.model.Bundle.BundleType
 
 
 @Component
@@ -118,49 +119,56 @@ class ValidateR4Provider (
             operationOutcome = parseAndValidateResource(resource, profile, importProfile)
         }
         val methodOutcome = MethodOutcome()
-        if (operationOutcome != null ) {
-            if (operationOutcome.hasIssue()) {
-            // Temp workaround for onto validation issues around workflow code
-                val newIssue = ArrayList<OperationOutcomeIssueComponent>()
-                for (issue in operationOutcome.issue) {
-                    if (issue.hasDiagnostics() && issue.diagnostics.contains("404")) {
-                        if(// issue.diagnostics.contains("https://fhir.nhs.uk/CodeSystem/Workflow-Code") ||
-                            issue.diagnostics.contains("https://fhir.nhs.uk/CodeSystem/NHSDataModelAndDictionary-treatment-function")) {
-                            issue.severity = OperationOutcome.IssueSeverity.INFORMATION
-                        }
-                        // This is to downgrade onto server issues to information.
-                        if (!issue.diagnostics.contains(".uk") && (issue.diagnostics.contains("A usable code system with URL")
-                        //    || issue.diagnostics.contains("LOINC is not indexed!")
-                                )) {
-                            // This is probably ontology server issue so degrade warning to information
-                            issue.severity = OperationOutcome.IssueSeverity.INFORMATION
-                        }
+    if (operationOutcome.hasIssue()) {
+    // Temp workaround for onto validation issues around workflow code
+        val newIssue = ArrayList<OperationOutcomeIssueComponent>()
+        for (issue in operationOutcome.issue) {
 
-                    }
-                    if (issue.diagnostics.contains("http://unstats.un.org/unsd/")
-                        || issue.diagnostics.contains("note that the validator cannot judge what is suitable")
-                        || issue.diagnostics.contains("A resource should have narrative for robust management")) {
-                        issue.severity = OperationOutcome.IssueSeverity.INFORMATION
-                    }
-                    if (//!issue.diagnostics.contains("Validation failed for 'http://loinc.org")
-                        //&&
-                        !issue.diagnostics.contains("because \"theCodeSystem\"")
-                        && !issue.diagnostics.contains("but you should check that it's not intended to match a slice")
-                        && !issue.diagnostics.contains("because &quot;theCodeSystem&quot; is null")
-                        && !issue.diagnostics.contains("A resource should have narrative for robust management" )
-                        ) {
-                        newIssue.add(issue)
-                    }
+            if (issue.hasLocation()) {
+                val newLocs = ArrayList<StringType>()
+                issue.location.forEach { str ->
+                    if (str.value == null || !str.value.startsWith("Line")) newLocs.add(str)
                 }
-                operationOutcome.issue = newIssue
-            } else {
-                // https://nhsd-jira.digital.nhs.uk/browse/IOPS-829
-                operationOutcome.issue.add(OperationOutcome.OperationOutcomeIssueComponent()
-                    .setCode(OperationOutcome.IssueType.INFORMATIONAL)
-                    .setSeverity(OperationOutcome.IssueSeverity.INFORMATION)
-                    .setDiagnostics("No issues detected during validation"))
+                issue.location = newLocs
+            }
+            if (issue.hasDiagnostics() && issue.diagnostics.contains("404")) {
+                if(// issue.diagnostics.contains("https://fhir.nhs.uk/CodeSystem/Workflow-Code") ||
+                    issue.diagnostics.contains("https://fhir.nhs.uk/CodeSystem/NHSDataModelAndDictionary-treatment-function")) {
+                    issue.severity = OperationOutcome.IssueSeverity.INFORMATION
+                }
+                // This is to downgrade onto server issues to information.
+                if (!issue.diagnostics.contains(".uk") && (issue.diagnostics.contains("A usable code system with URL")
+                //    || issue.diagnostics.contains("LOINC is not indexed!")
+                        )) {
+                    // This is probably ontology server issue so degrade warning to information
+                    issue.severity = OperationOutcome.IssueSeverity.INFORMATION
+                }
+
+            }
+            if (issue.diagnostics.contains("http://unstats.un.org/unsd/")
+                || issue.diagnostics.contains("note that the validator cannot judge what is suitable")
+                || issue.diagnostics.contains("A resource should have narrative for robust management")) {
+                issue.severity = OperationOutcome.IssueSeverity.INFORMATION
+            }
+            if (//!issue.diagnostics.contains("Validation failed for 'http://loinc.org")
+                //&&
+                !issue.diagnostics.contains("because \"theCodeSystem\"")
+                && !issue.diagnostics.contains("but you should check that it's not intended to match a slice")
+                && !issue.diagnostics.contains("because &quot;theCodeSystem&quot; is null")
+                && !issue.diagnostics.contains("A resource should have narrative for robust management" )
+                ) {
+                newIssue.add(issue)
             }
         }
+        operationOutcome.issue = newIssue
+    } else {
+        // https://nhsd-jira.digital.nhs.uk/browse/IOPS-829
+        operationOutcome.issue.add(OperationOutcome.OperationOutcomeIssueComponent()
+            .setCode(OperationOutcome.IssueType.INFORMATIONAL)
+            .setSeverity(OperationOutcome.IssueSeverity.INFORMATION)
+            .setDiagnostics("No issues detected during validation"))
+    }
+
         methodOutcome.operationOutcome = operationOutcome
         return methodOutcome
     }
@@ -215,11 +223,21 @@ class ValidateR4Provider (
             result = validator.validateWithResult(resource, ValidationOptions().addProfile(profile))
                 .toOperationOutcome() as? OperationOutcome
         } else {
-            capabilityStatementApplier.applyCapabilityStatementProfiles(resource, importProfile)
-            val messageDefinitionErrors = fhirMessage.applyMessageDefinition(resource)
-            if (messageDefinitionErrors != null) {
-                messageDefinitionErrors.issue.forEach{
-                    additionalIssues.add(it)
+            if (resource is Bundle && resource.type.equals(BundleType.DOCUMENT)) {
+                // enforce local profiles in the FHIR document
+                (resource as Bundle).entry.forEach { entry ->
+                    if (entry.hasResource()) {
+                        capabilityStatementApplier.applyCapabilityStatementProfiles(entry.resource, importProfile)
+                    }
+                }
+                capabilityStatementApplier.applyCapabilityStatementProfiles(resource, importProfile)
+            } else {
+                capabilityStatementApplier.applyCapabilityStatementProfiles(resource, importProfile)
+                val messageDefinitionErrors = fhirMessage.applyMessageDefinition(resource)
+                if (messageDefinitionErrors != null) {
+                    messageDefinitionErrors.issue.forEach{
+                        additionalIssues.add(it)
+                    }
                 }
             }
             if (importProfile !== null && importProfile && resource is Bundle) fhirDocumentApplier.applyDocumentDefinition(resource)
